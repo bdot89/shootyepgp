@@ -504,6 +504,33 @@ local rows = {}
 for i = 1, table.getn(af.list.view) do rows[af.list.view[i].id] = af.list.view[i] end
 ok(rows.Corvan and rows.Corvan.problem and rows.Corvan.cells[2] ~= nil, "answer listed with its problem")
 ok(rows.Aldren and AC.answers.Aldren and AC.answers.Aldren.BigWigs == "M", "own answer counted (BigWigs missing here)")
+ok(af.list.heads[4].text:GetText() == "BigWigs" and (af.list.heads[5].text:GetText() or "") == "", "one column per checked addon (" .. tostring(af.list.heads[4].text:GetText()) .. "|" .. tostring(af.list.heads[5].text:GetText()) .. ")")
+ok(string.find(rows.Corvan.cells[4], "missing") and rows.Corvan.sort.miss == 1, "direct answer fills the addon column")
+-- an old copy cannot answer: its addons' own messages fill the row
+Mock.Fire("CHAT_MSG_ADDON", "BigWigs", "PEPO_BWVR 30123 Aldren", "RAID", "Brindle")
+Mock.Fire("CHAT_MSG_ADDON", "pfUI", "VERSION:60104", "GUILD", "Brindle")
+local bt, bv = AC.HeardFor("Brindle", "BigWigs")
+ok(bt and bv == "r30123", "BigWigs heard with its revision")
+local _, pv = AC.HeardFor("Brindle", "pfUI")
+ok(pv == "6.1.4", "pfUI version read from its login message (" .. tostring(pv) .. ")")
+UI.RefreshPage()
+rows = {}
+for i = 1, table.getn(af.list.view) do rows[af.list.view[i].id] = af.list.view[i] end
+ok(rows.Brindle and string.find(rows.Brindle.cells[4], "r30123") and not rows.Brindle.answered, "heard BigWigs shown for a member with no answer")
+ok(rows.Fennick and string.find(rows.Fennick.cells[4], "?", 1, true), "nothing heard = unknown")
+do
+  local s1 = table.getn(Mock.sent)
+  Mock.raid = 5
+  af.channel = "RAID"
+  af.names:SetText("BigWigs")
+  local bw
+  AC.AskBigWigs()
+  for i = s1 + 1, table.getn(Mock.sent) do if Mock.sent[i][1] == "BigWigs" and Mock.sent[i][3] == "RAID" then bw = Mock.sent[i][2] end end
+  ok(bw and string.find(bw, "^BWVQ"), "BigWigs asked with its own version check in a raid")
+  Mock.raid = 0
+  af.channel = "GUILD"
+  af.names:SetText("shootyepgp,BigWigs")
+end
 admin, gl = false, false
 UI.LayoutNav()
 ok(not UI.pages.addons.nav:IsShown(), "addon check hidden from members")

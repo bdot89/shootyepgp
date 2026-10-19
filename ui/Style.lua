@@ -10,7 +10,7 @@
 SEPGP_UI = SEPGP_UI or {}
 local UI = SEPGP_UI
 
-UI.VERSION = "1.1.2"
+UI.VERSION = "1.1.3"
 local MEDIA = "Interface\\AddOns\\shootyepgp\\media\\"
 UI.WHITE = "Interface\\ChatFrame\\ChatFrameBackground"
 UI.DISC = MEDIA .. "disc"
