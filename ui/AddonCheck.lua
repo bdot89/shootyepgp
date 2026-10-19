@@ -265,7 +265,14 @@ UI.Page{ key = "addons", label = "Addon check", after = "officer", parent = "off
     l.onEnter = function(r, line)
       GameTooltip:SetOwner(line, "ANCHOR_RIGHT")
       GameTooltip:AddLine(r.id)
-      GameTooltip:AddLine(r.tip ~= "" and r.tip or "No answer: offline, an older shootyepgp, or no addon-check responder.", 1, 1, 1, 1)
+      local why = "No answer: offline, an older shootyepgp, or no addon-check responder."
+      local st, ver = UI.Versions and UI.Versions.Status(r.id)
+      if st == "old" then
+        why = "No answer: runs an older shootyepgp" .. (ver and (" (v" .. ver .. ")") or "") .. " that cannot answer addon checks - needs to update."
+      elseif st == "none" then
+        why = "No answer: no shootyepgp answering (not installed, switched off, or older than March 2026)."
+      end
+      GameTooltip:AddLine(r.tip ~= "" and r.tip or why, 1, 1, 1, 1)
       GameTooltip:Show()
     end
     l.onClick = function(r) if UI.byName and UI.byName[r.id] then UI.OpenHistory(r.id) end end

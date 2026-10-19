@@ -223,6 +223,7 @@ function UI.Build()
     UI.Refresh()
   end)
   UI.Tip(refresh, "Refresh", "Asks the server for the newest guild notes (where EP and GP are kept) and redraws everything.")
+  if UI.Versions then UI.Versions.BuildCounter(f, refresh) end   -- officers: who runs which version
 
   UI.BuildSummary(f)
 
@@ -273,6 +274,7 @@ function UI.Build()
     UI.RequestRoster()
     UI.rosterDirty = true
     UI.LayoutNav()
+    if UI.Versions then UI.Versions.Ask() end
     UI.Refresh()
   end)
   f:SetScript("OnHide", function() UI.CloseMenus() end)
@@ -499,6 +501,7 @@ function UI.Refresh()
   UI.Roster(UI.rosterDirty)
   UI.RefreshSummary()
   UI.RefreshBadges()
+  if UI.Versions then UI.Versions.Refresh() end
   UI.RefreshPage()
 end
 
@@ -513,7 +516,7 @@ function UI.Signature()
   local cd = sepgp and sepgp.timer and sepgp.timer.cd_text or ""
   local bidcd = sepgp_bids and sepgp_bids._counterText or ""
   local hist = (UI.History and UI.History.version or 0) .. "/" .. (UI.AddonCheck and UI.AddonCheck.version or 0)
-    .. "/" .. (UI.Accounts and UI.Accounts.version or 0)
+    .. "/" .. (UI.Accounts and UI.Accounts.version or 0) .. "/" .. (UI.Versions and UI.Versions.version or 0)
   return bids .. ":" .. item .. ":" .. res .. ":" .. loot .. ":" .. log .. ":" .. cd .. ":" .. bidcd .. ":" .. hist
 end
 

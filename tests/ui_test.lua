@@ -127,7 +127,7 @@ function GetAddOnInfo(n) if n == "pfUI" then return n, "pfUI", "", nil, 1, "DISA
 ITEM_QUALITY_COLORS = { [4] = { hex = "|cffa335ee" } }
 
 -- ------------------------------------------------------------ load
-for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Accounts.lua", "ui/Minimap.lua" }) do dofile(f) end
+for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Accounts.lua", "ui/Versions.lua", "ui/Minimap.lua" }) do dofile(f) end
 local UI = SEPGP_UI
 local function Dump() for i = 1, table.getn(Mock.printed) do print("chat: " .. Mock.printed[i]) end Mock.printed = {} end
 Mock.Fire("ADDON_LOADED", "shootyepgp")
@@ -591,6 +591,51 @@ do
   UI.NavClick("standings")
   UI.Open("accounts")
   ok(UI.FoldOpen("officer") and UI.current == "accounts", "/epgp accounts unfolds Officer")
+end
+-- ---------------------------------------------------------------- versions
+do
+  local VV = UI.Versions
+  local function SentV(from, p, pat)
+    for i = from + 1, table.getn(Mock.sent) do
+      if Mock.sent[i][1] == p and string.find(Mock.sent[i][2], pat) then return Mock.sent[i][2] end
+    end
+  end
+  ok(VV.Compare("10.20.5 <ERROR>", "10.21.1") == -1 and VV.Compare("10.21.1", "10.21.1") == 0 and VV.Compare("11.0", "10.21.1") == 1, "versions compare")
+  ok(VV.Mine() == "10.20.3", "own version read from the toc (" .. VV.Mine() .. ")")
+  -- the responder
+  local s0 = table.getn(Mock.sent)
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPV", "VQ", "GUILD", "Corvan")
+  Mock.Tick(4)
+  ok(SentV(s0, "SEPGPV", "^VA;10%.20%.3$"), "answers a version question")
+  s0 = table.getn(Mock.sent)
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPV", "VQ", "GUILD", "Dalia")
+  Mock.Tick(4)
+  ok(not SentV(s0, "SEPGPV", "^VA;"), "answers at most every 30 s")
+  -- an officer asks; Corvan is current, Brindle has an old copy, Fennick nothing
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGP_PREFIX", "VERSION;10.20.1;10", "GUILD", "Brindle")
+  UI.Open("home")
+  s0 = table.getn(Mock.sent)
+  VV.Ask(true)
+  ok(SentV(s0, "SEPGPV", "^VQ$") and SentV(s0, "SWOW_Q", "."), "officer asks new and old copies")
+  ok(VV.Status("Fennick") == "wait", "waiting for answers")
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPV", "VA;10.20.3", "GUILD", "Corvan")
+  Mock.Fire("CHAT_MSG_ADDON", "SWOW_R", "0", "GUILD", "Corvan")
+  Mock.Fire("CHAT_MSG_ADDON", "SWOW_R", "0", "GUILD", "Brindle")
+  Mock.Tick(7)
+  local st, ver = VV.Status("Brindle")
+  ok(VV.Status("Corvan") == "current" and st == "old" and ver == "10.20.1", "old copy found with its version (" .. tostring(st) .. " " .. tostring(ver) .. ")")
+  ok(VV.Status("Fennick") == "none" and VV.Status("Aldren") == "current", "silent member = no shootyepgp; self current")
+  UI.Refresh()
+  ok(VV.counter:IsShown() and string.find(VV.counter.text:GetText(), "2 / 4 online up to date"), "counter shows 2 / 4 (" .. tostring(VV.counter.text:GetText()) .. ")")
+  local n = VV.Count()
+  ok(table.getn(n.old) == 1 and n.old[1].name == "Brindle" and table.getn(n.none) == 1, "hover lists who needs to update")
+  admin, gl = false, false
+  UI.Refresh()
+  ok(not VV.counter:IsShown(), "counter hidden from members")
+  s0 = table.getn(Mock.sent)
+  VV.Ask(true)
+  ok(not SentV(s0, "SEPGPV", "^VQ$"), "members never ask")
+  admin, gl = true, true
 end
 -- ---------------------------------------------------------------- legacy.lua (the old windows' stand-ins)
 do

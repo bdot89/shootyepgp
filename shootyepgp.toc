@@ -7,7 +7,7 @@
 ## X-Website: https://github.com/bdot89/shootyepgp
 ## X-Category: Guild
 ## X-Credits: shooty, Qcat(zhCN)
-## Version: 10.21.1
+## Version: 10.21.2
 ## X-Alpha: 
 ## OptionalDeps: Ace2
 ## SavedVariables: sepgp_saychannel, sepgp_groupbyclass, sepgp_groupbyarmor, sepgp_groupbyrole, sepgp_raidonly, sepgp_dbver, sepgp_debug, sepgp_fubar, sepgp_sound, RaidStrikeDB, RaidStrikeResetTime, sepgp_ui, sepgp_history, sepgp_accounts
@@ -50,4 +50,5 @@ ui\Raids.lua
 ui\RaidsPractice.lua
 ui\AddonCheck.lua
 ui\Accounts.lua
+ui\Versions.lua
 ui\Minimap.lua
