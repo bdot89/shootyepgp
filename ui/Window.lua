@@ -454,6 +454,7 @@ function UI.Signature()
   local cd = sepgp and sepgp.timer and sepgp.timer.cd_text or ""
   local bidcd = sepgp_bids and sepgp_bids._counterText or ""
   local hist = (UI.History and UI.History.version or 0) .. "/" .. (UI.AddonCheck and UI.AddonCheck.version or 0)
+    .. "/" .. (UI.Accounts and UI.Accounts.version or 0)
   return bids .. ":" .. item .. ":" .. res .. ":" .. loot .. ":" .. log .. ":" .. cd .. ":" .. bidcd .. ":" .. hist
 end
 
@@ -533,5 +534,5 @@ SlashCmdList["SEPGPUI"] = function(msg)
   msg = string.lower(msg or "")
   if msg == "" then UI.Toggle() return end
   if UI.pages[msg] then UI.Open(msg) return end
-  UI.Print("/epgp opens the window. /epgp <topic>: home, standings, bids, loot, reserves, alts, logs, strikes, tools, settings, officer")
+  UI.Print("/epgp opens the window. /epgp <topic>: home, standings, bids, loot, reserves, alts, logs, strikes, tools, settings, officer, addons, accounts")
 end

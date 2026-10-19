@@ -127,7 +127,7 @@ function GetAddOnInfo(n) if n == "pfUI" then return n, "pfUI", "", nil, 1, "DISA
 ITEM_QUALITY_COLORS = { [4] = { hex = "|cffa335ee" } }
 
 -- ------------------------------------------------------------ load
-for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Minimap.lua" }) do dofile(f) end
+for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Accounts.lua", "ui/Minimap.lua" }) do dofile(f) end
 local UI = SEPGP_UI
 local function Dump() for i = 1, table.getn(Mock.printed) do print("chat: " .. Mock.printed[i]) end Mock.printed = {} end
 Mock.Fire("ADDON_LOADED", "shootyepgp")
@@ -508,6 +508,71 @@ admin, gl = false, false
 UI.LayoutNav()
 ok(not UI.pages.addons.nav:IsShown(), "addon check hidden from members")
 admin, gl = true, true
+-- ---------------------------------------------------------------- accounts
+do
+  local ACC = UI.Accounts
+  local function SentAcc(from, pat)
+    local found
+    for i = from + 1, table.getn(Mock.sent) do
+      if Mock.sent[i][1] == "SEPGPAC" and string.find(Mock.sent[i][2], pat) then found = Mock.sent[i][2] end
+    end
+    return found
+  end
+  Mock.faction = "Horde"
+  ACC.lastReport, ACC.loginAt = nil, nil
+  -- a Horde alt logged in earlier on this account, then this character
+  sepgp_accounts = { chars = { ["Grubnak-"] = { n = "Grubnak", r = "", f = "H", c = "WARRIOR", l = 42, g = "Other Guild" } } }
+  Mock.Fire("PLAYER_ENTERING_WORLD")
+  ok(sepgp_accounts.chars["Aldren-"] and sepgp_accounts.chars["Aldren-"].g == "Test Guild", "logged-in character recorded with guild")
+  local s0 = table.getn(Mock.sent)
+  Mock.Tick(25)
+  local rep = SentAcc(s0, "^AR;")
+  ok(rep and string.find(rep, "Grubnak,,H,WARRIOR,42,Other Guild") and string.find(rep, "Aldren,"), "own list sent after login (" .. tostring(rep) .. ")")
+  -- a member answers an officer's question once, after a short wait
+  s0 = table.getn(Mock.sent)
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPAC", "AQ", "GUILD", "Corvan")
+  Mock.Tick(10)
+  ok(SentAcc(s0, "^AR;") == nil, "no second answer within a minute")
+  Mock.Tick(61)
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPAC", "AQ", "GUILD", "Corvan")
+  Mock.Tick(10)
+  ok(SentAcc(s0, "^AR;") ~= nil, "answers a question after a minute")
+  -- reports from others; an alt in the guild is found through its account
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPAC", "AR;111;Corvan,,A,WARRIOR,60,Test Guild~Brindle,,A,MAGE,60,Test Guild", "GUILD", "Corvan")
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPAC", "AR;111;Zugzug,,H,ROGUE,60,", "GUILD", "Corvan")
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPAC", "AR;222;Evil,,H,ROGUE,60,", "GUILD", "Stranger")
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPAC", "AR;333;Sneaky,,H,ROGUE,60,", "WHISPER", "Dalia")
+  local reps = sepgp_accounts.reports["Test Guild"]
+  ok(reps.Corvan and table.getn(reps.Corvan.list) == 3, "multi-part list joined (" .. tostring(reps.Corvan and table.getn(reps.Corvan.list)) .. ")")
+  ok(not reps.Stranger and not reps.Dalia, "strangers and non-guild channels ignored")
+  s0 = table.getn(Mock.sent)
+  UI.LayoutNav()
+  UI.Open("accounts")
+  ok(UI.pages.accounts.nav:IsShown(), "accounts topic for officers")
+  local af2 = UI.pages.accounts.frame
+  ACC.Ask()
+  Mock.Tick(3)
+  ok(SentAcc(s0, "^AQ$") ~= nil, "officer question sent")
+  UI.RefreshPage()
+  local arows = {}
+  for i = 1, table.getn(af2.list.view) do arows[af2.list.view[i].id] = af2.list.view[i] end
+  ok(arows.Corvan and arows.Corvan.others == 2 and string.find(arows.Corvan.cells[5], "Zugzug"), "Corvan shows his other characters")
+  ok(arows.Brindle and arows.Brindle.via == "Corvan", "alt without a list found through its account")
+  ok(arows.Aldren and string.find(arows.Aldren.cells[5], "Grubnak"), "own Horde alt listed")
+  ok(arows.Dalia and arows.Dalia.report == nil, "member with no list shown as such")
+  af2.search:SetText("zugzug")
+  af2.list:Filter()
+  ok(table.getn(af2.list.view) == 2, "search finds the owner of a character (" .. table.getn(af2.list.view) .. ")")
+  af2.search:SetText("")
+  af2.list:Filter()
+  -- members keep no lists and never see the page
+  admin, gl = false, false
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPAC", "AR;444;Eldrin,,A,DRUID,60,Test Guild", "GUILD", "Eldrin")
+  ok(not reps.Eldrin, "members' copies keep no lists")
+  UI.LayoutNav()
+  ok(not UI.pages.accounts.nav:IsShown(), "accounts hidden from members")
+  admin, gl = true, true
+end
 -- ---------------------------------------------------------------- legacy.lua (the old windows' stand-ins)
 do
   local said = {}

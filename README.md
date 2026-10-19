@@ -84,6 +84,7 @@ officer notes** (the same rule shootyepgp has always used).
 | **Strikes** | Raid strikes and the strike panel (`/strike`). |
 | **Officer** | Award EP to the raid or standby; raid progress tier; report channel; minimum EP; offspec price; decay %; alts sharing EP (guild leader); **Decay now**, **Reset all EPGP** (guild leader), **Lift low EP to the minimum**. |
 | **Addon check** | Ask your raid, party or the online guild which addons they have loaded (green = loaded with version, yellow = installed but off, red = missing). Nothing appears in chat. |
+| **Accounts** | Every guild member's other characters on the same WoW account, **Alliance and Horde**: faction, class, level, guild and realm (hover a row). Search for any character name to find who owns it. Each member's shootyepgp remembers the characters logged in on that account and sends the list when they log in; **Ask online members** asks everyone online now. A character only shows once it has been logged in with this version. |
 | **Tools** | Bench tracker, Gnarlmoon sides, strike panel, standings export / import (import: guild leader only), snowball tracking, item ID lookup, restart. |
 
 Every button that changes points, clears a list or posts to chat opens a **confirm box in the middle
@@ -112,6 +113,7 @@ the writing, so **every officer who awards points or runs a decay should use thi
 | Settings (tier, decay, offspec, minimum EP, alts) | Each player's saved variables | The guild leader's copy sends them to everyone |
 | Loot list, EP / GP log | The loot master's / officers' saved variables | Read into the history (below) |
 | **History** (loot, awards, raids) | `sepgp_history`, saved per guild on each PC | The guild addon channel (below) |
+| **Account characters** | `sepgp_accounts` on each PC: this account's characters, and (officers only) the lists members sent | The guild addon channel, prefix `SEPGPAC` |
 
 The plain addon only writes loot on the loot master's PC and EP / GP lines on officers' PCs, so a
 member's copy knew almost nothing about other players. This version keeps a **history store** on
