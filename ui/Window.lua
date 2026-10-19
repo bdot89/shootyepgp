@@ -242,8 +242,28 @@ function UI.Build()
     local p = UI.pages[UI.order[i]]
     p.nav = NavButton(nav, p.label)
     p.nav.key = p.key
-    p.nav:SetScript("OnClick", function() UI.Select(this.key) end)
+    p.nav:SetScript("OnClick", function() UI.NavClick(this.key) end)
     UI.Tip(p.nav, p.label, p.tip)
+    if p.parent then
+      -- a topic folded inside another one: indented under it
+      p.nav.text:ClearAllPoints()
+      p.nav.text:SetPoint("LEFT", p.nav, "LEFT", 26, 0)
+      UI.Font(p.nav.text, 11)
+    end
+  end
+  -- topics with folded topics get an arrow
+  for key, p in pairs(UI.pages) do
+    local parent = p.parent and UI.pages[p.parent]
+    if parent and parent.nav and not parent.nav.arrow then
+      local a = parent.nav:CreateTexture(nil, "OVERLAY")
+      a:SetTexture(UI.TRI)
+      a:SetWidth(9)
+      a:SetHeight(9)
+      a:SetPoint("RIGHT", parent.nav, "RIGHT", -8, 0)
+      a:SetVertexColor(C.dim[1], C.dim[2], C.dim[3], 1)
+      parent.nav.arrow = a
+      parent.nav.badge:SetPoint("RIGHT", parent.nav, "RIGHT", -22, 0)
+    end
   end
   local ver = UI.Text(nav, 10, C.dim)
   ver:SetPoint("BOTTOM", nav, "BOTTOM", 0, 8)
@@ -359,12 +379,45 @@ function UI.RefreshSummary()
 end
 
 -- Show the topics this character may use; Officer only for officers.
+-- folded topics (p.parent): shown under their parent while it is open
+function UI.FoldOpen(key)
+  local folds = UI.DB().folds
+  return type(folds) == "table" and folds[key] and true or false
+end
+function UI.SetFold(key, open)
+  local db = UI.DB()
+  if type(db.folds) ~= "table" then db.folds = {} end
+  db.folds[key] = open and true or nil
+end
+
+-- a topic with folded topics opens / closes them; any other topic is selected
+function UI.NavClick(key)
+  local p = UI.pages[key]
+  if not p or (p.admin and not UI.IsAdmin()) then return end
+  if p.nav and p.nav.arrow then
+    local open = not UI.FoldOpen(key)
+    UI.SetFold(key, open)
+    local cur = UI.pages[UI.current or ""]
+    if open or (cur and cur.parent == key) then
+      UI.LayoutNav()
+      UI.Select(key)
+      return
+    end
+    UI.LayoutNav()
+    return
+  end
+  UI.Select(key)
+end
+
 function UI.LayoutNav()
   local y = -6
   local admin = UI.IsAdmin()
   for i = 1, table.getn(UI.order) do
     local p = UI.pages[UI.order[i]]
-    if p.admin and not admin then
+    if p.nav.arrow then
+      p.nav.arrow:SetTexCoord(0, 1, UI.FoldOpen(p.key) and 0 or 1, UI.FoldOpen(p.key) and 1 or 0)
+    end
+    if (p.admin and not admin) or (p.parent and not UI.FoldOpen(p.parent)) then
       p.nav:Hide()
     else
       if p.gap then y = y - 10 end
@@ -415,6 +468,12 @@ function UI.Select(key, quiet)
   p.nav.text:SetTextColor(1, 1, 1)
   UI.current = key
   UI.DB().page = key
+  if p.parent and not UI.FoldOpen(p.parent) then
+    -- opened from elsewhere (/epgp accounts, last page): unfold its parent
+    UI.SetFold(p.parent, true)
+    UI.LayoutNav()
+    p.nav.bar:Show()
+  end
   UI.RefreshPage()
 end
 
@@ -482,7 +541,8 @@ function UI.Open(page)
   if page then UI.Select(page) end
 end
 
--- Pages register themselves: UI.Page{ key, label, tip, build, refresh, admin, badge, gap }
+-- Pages register themselves: UI.Page{ key, label, tip, build, refresh, admin, badge, gap, parent }
+-- (parent = "key": folded under that topic, shown while it is open)
 function UI.Page(p)
   UI.pages[p.key] = p
   -- p.after = "key": listed right after that topic

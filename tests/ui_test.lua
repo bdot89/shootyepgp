@@ -571,7 +571,26 @@ do
   ok(not reps.Eldrin, "members' copies keep no lists")
   UI.LayoutNav()
   ok(not UI.pages.accounts.nav:IsShown(), "accounts hidden from members")
+  ok(not UI.pages.officer.nav:IsShown(), "officer fold hidden from members")
+  UI.NavClick("officer")
+  ok(UI.current ~= "officer", "members cannot open the officer fold")
   admin, gl = true, true
+  -- Officer folds Addon check and Accounts away
+  UI.LayoutNav()
+  UI.Open("accounts")
+  ok(UI.FoldOpen("officer") and UI.pages.accounts.nav:IsShown(), "opening a folded topic unfolded Officer")
+  UI.NavClick("officer")
+  ok(not UI.FoldOpen("officer") and not UI.pages.accounts.nav:IsShown() and not UI.pages.addons.nav:IsShown(), "Officer click folds its topics away")
+  ok(UI.current == "officer", "folding while on a folded topic goes to Officer")
+  ok(UI.pages.officer.nav.arrow ~= nil and UI.pages.home.nav.arrow == nil, "only Officer has a fold arrow")
+  UI.NavClick("officer")
+  ok(UI.FoldOpen("officer") and UI.pages.accounts.nav:IsShown() and UI.current == "officer", "Officer click unfolds and opens Officer")
+  UI.NavClick("accounts")
+  ok(UI.current == "accounts", "folded topic opens")
+  UI.NavClick("officer")
+  UI.NavClick("standings")
+  UI.Open("accounts")
+  ok(UI.FoldOpen("officer") and UI.current == "accounts", "/epgp accounts unfolds Officer")
 end
 -- ---------------------------------------------------------------- legacy.lua (the old windows' stand-ins)
 do

@@ -202,7 +202,7 @@ end
 
 local CHANNELS = { { key = "RAID", label = "My raid" }, { key = "PARTY", label = "My party" }, { key = "GUILD", label = "Online guild" } }
 
-UI.Page{ key = "addons", label = "Addon check", after = "officer", admin = true,
+UI.Page{ key = "addons", label = "Addon check", after = "officer", parent = "officer", admin = true,
   tip = "Ask your raid or the guild which addons they have loaded. Officers only.",
   build = function(f)
     local top = UI.Card(f, "Check addons", PW, 92)

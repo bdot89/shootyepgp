@@ -1197,7 +1197,7 @@ local function Share()
   if IsGuildLeader() then sepgp:shareSettings(true) end
 end
 
-UI.Page{ key = "officer", label = "Officer", tip = "EP awards, decay and the guild's EPGP rules. Officers only.", admin = true,
+UI.Page{ key = "officer", label = "Officer", tip = "EP awards, decay and the guild's EPGP rules. Click to unfold the officer tools (Addon check, Accounts), click again to fold them away. Officers only.", admin = true,
   build = function(f)
     local cw = math.floor((PW - 8) / 2)
     -- awards

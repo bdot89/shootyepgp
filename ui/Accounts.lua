@@ -245,7 +245,7 @@ local function Ago(t)
   return math.floor(d / 86400) .. " d"
 end
 
-UI.Page{ key = "accounts", label = "Accounts", after = "addons", admin = true,
+UI.Page{ key = "accounts", label = "Accounts", after = "addons", parent = "officer", admin = true,
   tip = "Every member's other characters on the same account, Alliance and Horde. Officers only.",
   build = function(f)
     f.search = UI.EditBox(f, 200)

@@ -71,7 +71,7 @@ minimum EP, and the guild's settings (raid tier, decay, offspec price). Alts see
 
 ### For officers only
 
-These topics and buttons are hidden from members. "Officer" means a guild rank that can **edit
+These topics and buttons are hidden from members. **Officer** folds open: click it to show Addon check and Accounts under it, click again to hide them. "Officer" means a guild rank that can **edit
 officer notes** (the same rule shootyepgp has always used).
 
 | Topic | What it does |
@@ -83,8 +83,8 @@ officer notes** (the same rule shootyepgp has always used).
 | **Alts** | Which characters are alts of which mains (`{MainName}` in the alt's officer note). |
 | **Strikes** | Raid strikes and the strike panel (`/strike`). |
 | **Officer** | Award EP to the raid or standby; raid progress tier; report channel; minimum EP; offspec price; decay %; alts sharing EP (guild leader); **Decay now**, **Reset all EPGP** (guild leader), **Lift low EP to the minimum**. |
-| **Addon check** | Ask your raid, party or the online guild which addons they have loaded (green = loaded with version, yellow = installed but off, red = missing). Nothing appears in chat. |
-| **Accounts** | Every guild member's other characters on the same WoW account, **Alliance and Horde**: faction, class, level, guild and realm (hover a row). Search for any character name to find who owns it. Each member's shootyepgp remembers the characters logged in on that account and sends the list when they log in; **Ask online members** asks everyone online now. A character only shows once it has been logged in with this version. |
+| **Addon check** (inside Officer) | Ask your raid, party or the online guild which addons they have loaded (green = loaded with version, yellow = installed but off, red = missing). Nothing appears in chat. |
+| **Accounts** (inside Officer) | Every guild member's other characters on the same WoW account, **Alliance and Horde**: faction, class, level, guild and realm (hover a row). Search for any character name to find who owns it. Each member's shootyepgp remembers the characters logged in on that account and sends the list when they log in; **Ask online members** asks everyone online now. A character only shows once it has been logged in with this version. |
 | **Tools** | Bench tracker, Gnarlmoon sides, strike panel, standings export / import (import: guild leader only), snowball tracking, item ID lookup, restart. |
 
 Every button that changes points, clears a list or posts to chat opens a **confirm box in the middle
