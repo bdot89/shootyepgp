@@ -89,6 +89,23 @@ ok(p1 and SEPGP_UI.frame and SEPGP_UI.frame:IsShown() and SEPGP_UI.current == "s
 local p2, e2 = pcall(cmd.args.bids.func)
 ok(p2 and SEPGP_UI.current == "bids", "/shooty bids opens Bids " .. tostring(e2))
 for i = 1, table.getn(SEPGP_UI.order) do SEPGP_UI.Select(SEPGP_UI.order[i]) end
+-- the REAL decay through the decay log (ui\Decay.lua), then its undo
+local G = { { "Aldren", "{820:410}" }, { "Corvan", "tank {1500:900}" }, { "Dalia", "{120:300}" }, { "Fennick", "" } }
+GetNumGuildMembers = function() return table.getn(G) end
+GetGuildRosterInfo = function(i) local g = G[i] if not g then return nil end return g[1], "Raider", 3, 60, "Warrior", "", "", g[2], 1 end
+GuildRosterSetOfficerNote = function(i, note) if G[i] then G[i][2] = note end end
+sepgp_decay, sepgp_minep = 0.9, 300
+local DL = SEPGP_UI.Decay
+local okDecay, errDecay = pcall(sepgp.decay_epgp_v3, sepgp)
+ok(okDecay, "real decay runs through the decay log " .. tostring(errDecay))
+ok(G[1][2] == "{738:369}" and G[2][2] == "tank {1350:810}" and G[3][2] == "{108:300}" and G[4][2] == "",
+  "real decay wrote the notes (" .. G[1][2] .. " / " .. G[2][2] .. " / " .. G[3][2] .. ")")
+local rec = DL.List()[1]
+ok(rec and rec.n == 3 and rec.pct == 10 and DL.Fits(rec), "real decay recorded: 3 members, 10%, fits the rule")
+local okUndo, errUndo = pcall(DL.Undo, rec and rec.id)
+ok(okUndo, "undo runs " .. tostring(errUndo))
+ok(G[1][2] == "{820:410}" and G[2][2] == "tank {1500:900}" and G[3][2] == "{120:300}", "undo puts the notes back (" .. G[1][2] .. " / " .. G[2][2] .. ")")
+ok(rec and rec.undo and rec.undo.n == 3, "undo recorded")
 for i = 1, table.getn(Mock.printed) do
   if string.find(Mock.printed[i], "rror") or string.find(Mock.printed[i], "page ") then print("chat: " .. Mock.printed[i]) fails = fails + 1 end
 end

@@ -32,7 +32,7 @@ local MAX_MSG = 230          -- addon message limit is 255 with the prefix
 local GAP = 0.5              -- seconds between our messages
 local MAX_EVENTS = 6000      -- kept per guild; the oldest go first
 local REPLY_MAX = 40         -- events per answer
-local KINDS = { L = 1, E = 1, G = 1, D = 1, R = 1, Z = 1 }
+local KINDS = { L = 1, E = 1, G = 1, D = 1, R = 1, Z = 1, U = 1 }   -- U = a decay undone (Decay.lua)
 
 -- ------------------------------------------------------------------ helpers
 
@@ -65,7 +65,11 @@ H.Plain = Plain
 local function Me() return (sepgp and sepgp._playerName) or UnitName("player") end
 
 local MON = { Jan = 1, Feb = 2, Mar = 3, Apr = 4, May = 5, Jun = 6, Jul = 7, Aug = 8, Sep = 9, Oct = 10, Nov = 11, Dec = 12 }
--- the addon's "Sep/27 18:44:56" (no year) -> epoch seconds, this year or last
+-- the addon's "Sep/27 18:44:56" (no year) -> epoch seconds, this year or last.
+-- 22 Oct 2026: Lua 5.0's time{} reads the clock as winter time, so summer
+-- stamps came out an hour late (that day's decay showed twice in the history).
+-- The hour is now checked against date(); the second value is the old, late
+-- time, so events stored with it can be moved (FixShifted below).
 function H.ParseStamp(s)
   local _, _, mon, d, hh, mm, ss = string.find(s or "", "(%a+)/(%d+) (%d+):(%d+):(%d+)")
   if not mon or not MON[mon] then return nil end
@@ -77,7 +81,15 @@ function H.ParseStamp(s)
   end
   local t = At(y)
   if t and t > now + 86400 then t = At(y - 1) end
-  return t
+  if not t then return nil end
+  local raw = t
+  local ok, back = pcall(date, "*t", t)
+  if ok and type(back) == "table" and back.hour then
+    local off = back.hour - tonumber(hh)
+    if off > 12 then off = off - 24 elseif off < -12 then off = off + 24 end
+    t = t - off * 3600
+  end
+  return t, raw
 end
 
 -- ------------------------------------------------------------------ store
@@ -231,6 +243,40 @@ end
 
 -- ------------------------------------------------------------------ sources
 
+-- An event read from this PC's lists (e) that ParseStamp used to put an hour
+-- late (raw): the stored late copy is moved to the right time, or dropped
+-- when the same event is already there (heard live). Copies with a sender
+-- came from someone else and are left alone.
+local function FixShifted(e, raw)
+  if not raw or raw == e.t then return end
+  local s = H.Index()
+  if not s then return end
+  local old, live
+  local b, nb = math.floor(raw / 60), math.floor(e.t / 60)
+  for d = -1, 1 do
+    old = old or H.keys[Key(e, b + d)]
+    live = live or H.keys[Key(e, nb + d)]
+  end
+  if not old or old.by or old == live then return end
+  local k = Key(old, math.floor(old.t / 60))
+  if H.keys[k] == old then H.keys[k] = nil end
+  if live then
+    for i = table.getn(s.events), 1, -1 do
+      if s.events[i] == old then table.remove(s.events, i) break end
+    end
+    H.keys = nil   -- the name lists still hold it: index again
+  else
+    old.t = e.t
+    H.keys[Key(old, nb)] = old
+  end
+  H.version = H.version + 1
+end
+
+local function AddRead(e, raw)
+  pcall(FixShifted, e, raw)
+  return H.Add(e)
+end
+
 -- one sepgp_looted entry: {time, player, player coloured, link, bind, price, offspec price, action}
 function H.FromLoot(data, live)
   if type(data) ~= "table" then return end
@@ -242,41 +288,42 @@ function H.FromLoot(data, live)
   local V = sepgp and sepgp.VARS or {}
   local n = 0
   if action == V.msgp then n = price or 0 elseif action == V.osgp then n = off or 0 end
-  local t = live and time() or H.ParseStamp(data[1])
+  local t, raw
+  if live then t = time() else t, raw = H.ParseStamp(data[1]) end
   if not t then return end
-  local e, new = H.Add({ k = "L", t = t, w = player, i = tonumber(id), nm = nm, l = link, n = n, a = action and Clean(action, 40) or nil })
+  local e, new = AddRead({ k = "L", t = t, w = player, i = tonumber(id), nm = nm, l = link, n = n, a = action and Clean(action, 40) or nil }, raw)
   return e, new
 end
 
 -- one sepgp_log line (the formats in shootyepgp.lua)
 function H.FromLog(stamp, line)
-  local t = H.ParseStamp(stamp)
+  local t, raw = H.ParseStamp(stamp)
   if not t or not line then return end
   line = Plain(line)
   local _, _, n, who, new
   _, _, n, who, new = string.find(line, "^Awarding (%-?%d+) GP to ([^%s,%.]+).-New: (%-?%d+)")
-  if n then return H.Add({ k = "G", t = t, n = tonumber(n), gp = tonumber(new), w = who }) end
+  if n then return AddRead({ k = "G", t = t, n = tonumber(n), gp = tonumber(new), w = who }, raw) end
   _, _, n, who, new = string.find(line, "^Awarded (%-?%d+) EP to ([^%s,%.]+).-New: (%-?%d+)")
-  if n then return H.Add({ k = "E", t = t, n = tonumber(n), ep = tonumber(new), w = who }) end
+  if n then return AddRead({ k = "E", t = t, n = tonumber(n), ep = tonumber(new), w = who }, raw) end
   _, _, n, who, new = string.find(line, "^(%-%d+) EP Penalty to ([^%s,%.]+).-New: (%-?%d+)")
-  if n then return H.Add({ k = "E", t = t, n = tonumber(n), ep = tonumber(new), w = who }) end
+  if n then return AddRead({ k = "E", t = t, n = tonumber(n), ep = tonumber(new), w = who }, raw) end
   local mine = sepgp_main or Me()
   _, _, n = string.find(line, "^You have been awarded (%d+) EP")
-  if n then return H.Add({ k = "E", t = t, n = tonumber(n), w = mine }) end
+  if n then return AddRead({ k = "E", t = t, n = tonumber(n), w = mine }, raw) end
   _, _, n = string.find(line, "^You have received a (%-%d+) EP penalty")
-  if n then return H.Add({ k = "E", t = t, n = tonumber(n), w = mine }) end
+  if n then return AddRead({ k = "E", t = t, n = tonumber(n), w = mine }, raw) end
   _, _, n = string.find(line, "^You have gained (%d+) GP")
-  if n then return H.Add({ k = "G", t = t, n = tonumber(n), w = mine }) end
+  if n then return AddRead({ k = "G", t = t, n = tonumber(n), w = mine }, raw) end
   _, _, n = string.find(line, "^Giving (%d+) ep to all raidmembers")
   if not n then _, _, n = string.find(line, "^(%d+) EP awarded to Raid") end
-  if n then return H.Add({ k = "R", t = t, n = tonumber(n), a = "raid" }) end
+  if n then return AddRead({ k = "R", t = t, n = tonumber(n), a = "raid" }, raw) end
   _, _, n = string.find(line, "^Giving (%d+) ep to active reserves")
   if not n then _, _, n = string.find(line, "^(%d+) EP awarded to Reserves") end
-  if n then return H.Add({ k = "R", t = t, n = tonumber(n), a = "standby" }) end
+  if n then return AddRead({ k = "R", t = t, n = tonumber(n), a = "standby" }, raw) end
   _, _, n = string.find(line, "decayed by ([%d%.]+)%%")
   if not n then _, _, n = string.find(line, "^([%d%.]+)%% decay to EP and GP") end
-  if n then return H.Add({ k = "D", t = t, n = tonumber(n) }) end
-  if string.find(line, "has been reset to") then return H.Add({ k = "Z", t = t }) end
+  if n then return AddRead({ k = "D", t = t, n = tonumber(n) }, raw) end
+  if string.find(line, "has been reset to") then return AddRead({ k = "Z", t = t }, raw) end
 end
 
 -- this PC's own lists, once per session (the store skips what it has)
@@ -784,6 +831,8 @@ function H.Describe(e)
     return "+" .. (e.n or 0) .. " EP to the " .. (e.a or "raid") .. UI.Paint(C.dim, "  (everyone in it)"), "", ""
   elseif e.k == "Z" then
     return UI.Paint(C.red, "EPGP reset") .. UI.Paint(C.dim, "  (everyone)"), "", ""
+  elseif e.k == "U" then
+    return UI.Paint(C.gold, (e.n or 0) .. "% decay undone") .. UI.Paint(C.dim, "  (everyone's EP and GP put back)"), "", ""
   end
   return e.k, "", ""
 end

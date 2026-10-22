@@ -10,7 +10,7 @@
 SEPGP_UI = SEPGP_UI or {}
 local UI = SEPGP_UI
 
-UI.VERSION = "1.1.3"
+UI.VERSION = "1.2.0"
 local MEDIA = "Interface\\AddOns\\shootyepgp\\media\\"
 UI.WHITE = "Interface\\ChatFrame\\ChatFrameBackground"
 UI.DISC = MEDIA .. "disc"
@@ -445,6 +445,9 @@ function UI.Confirm(text, fn, title, yesLabel)
   d.fn = fn
   d.title:SetText(title or "Are you sure?")
   d.text:SetText(text)
+  -- long texts (the decay log's undo) make the box taller
+  local h = d.text:GetHeight()
+  d:SetHeight(math.max(196, (type(h) == "number" and h or 0) + 50 + 66))
   d.yes:SetText(yesLabel or "Yes, do it")
   d.shade:Show()
   d:Show()

@@ -71,7 +71,7 @@ minimum EP, and the guild's settings (raid tier, decay, offspec price). Alts see
 
 ### For officers only
 
-These topics and buttons are hidden from members. **Officer** folds open: click it to show Addon check and Accounts under it, click again to hide them. "Officer" means a guild rank that can **edit
+These topics and buttons are hidden from members. **Officer** folds open: click it to show Decay log, Addon check and Accounts under it, click again to hide them. "Officer" means a guild rank that can **edit
 officer notes** (the same rule shootyepgp has always used).
 
 | Topic | What it does |
@@ -83,6 +83,7 @@ officer notes** (the same rule shootyepgp has always used).
 | **Alts** | Which characters are alts of which mains (`{MainName}` in the alt's officer note). |
 | **Strikes** | Raid strikes and the strike panel (`/strike`). |
 | **Officer** | Award EP to the raid or standby; raid progress tier; report channel; minimum EP; offspec price; decay %; alts sharing EP (guild leader); **Decay now**, **Reset all EPGP** (guild leader), **Lift low EP to the minimum**. |
+| **Decay log** (inside Officer) | Every decay: date, time, which officer, the decay % and **everyone's EP and GP before and after**. A few seconds after a decay the officer notes are read again from the server and checked: the log says whether every note really changed, and **Decay the missed** fixes any that did not. **Undo** (the newest decay only, asks first) gives everyone back exactly what the decay took, keeping awards given since; it is posted to the guild and logged. The decay button warns when the last decay was less than 6 days ago. Older decays from the EP / GP history get a GP check instead. |
 | **Version counter** (top right, next to Refresh) | How many online members run this version, e.g. *9 / 14 online up to date*. Hover for who is up to date, who **needs to update** (with their version when known) and who has no shootyepgp answering; click to ask again. Old copies (since March 2026) are found through the hidden check every shootyepgp already answers. |
 | **Addon check** (inside Officer) | Ask your raid, party or the online guild which addons they have loaded: one column per addon (green = loaded with version, gold = off / old, red = missing, ? = unknown). Members on an up-to-date shootyepgp answer exactly; for older copies the page fills in what their addons were heard sending (pfUI, BigWigs, shootyepgp...), and in a raid BigWigs is also asked with its own version check. Nothing appears in chat. |
 | **Accounts** (inside Officer) | Every guild member's other characters on the same WoW account, **Alliance and Horde**: faction, class, level, guild and realm (hover a row). Search for any character name to find who owns it. Each member's shootyepgp remembers the characters logged in on that account and sends the list when they log in; **Ask online members** asks everyone online now. A character only shows once it has been logged in with this version. |

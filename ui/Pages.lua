@@ -998,7 +998,7 @@ UI.Page{ key = "logs", label = "EP / GP history", tip = "Every EP and GP award, 
     end
     UI.History.Seed()
     UI.History.Ask("*")
-    local evs = UI.History.All({ E = 1, G = 1, D = 1, R = 1, Z = 1 })
+    local evs = UI.History.All({ E = 1, G = 1, D = 1, R = 1, Z = 1, U = 1 })
     for i = 1, table.getn(evs) do
       local e = evs[i]
       local what, ep, gp = UI.History.Describe(e)
@@ -1197,7 +1197,7 @@ local function Share()
   if IsGuildLeader() then sepgp:shareSettings(true) end
 end
 
-UI.Page{ key = "officer", label = "Officer", tip = "EP awards, decay and the guild's EPGP rules. Click to unfold the officer tools (Addon check, Accounts), click again to fold them away. Officers only.", admin = true,
+UI.Page{ key = "officer", label = "Officer", tip = "EP awards, decay and the guild's EPGP rules. Click to unfold the officer tools (Decay log, Addon check, Accounts), click again to fold them away. Officers only.", admin = true,
   build = function(f)
     local cw = math.floor((PW - 8) / 2)
     -- awards
@@ -1273,13 +1273,21 @@ UI.Page{ key = "officer", label = "Officer", tip = "EP awards, decay and the gui
     dec:SetScript("OnClick", function()
       local pct = math.floor((1 - (sepgp_decay or 0.9)) * 100 + 0.5)
       local floor = tonumber(sepgp_minep) or 0
-      UI.Confirm("Every member's EP and GP will be lowered by " .. pct .. "%.\n"
+      -- a decay given twice by mistake: say when the last one was (22 Oct 2026)
+      local warn = ""
+      local last = UI.Decay and UI.Decay.Last()
+      if last and time() - last.t < 6 * 86400 then
+        warn = UI.Paint(C.red, "The last decay was only " .. UI.Decay.Ago(last.t) .. " ago (" .. date("%a %d %b %H:%M", last.t)
+          .. " by " .. (last.by or "?") .. ").") .. "\n\n"
+      end
+      UI.Confirm(warn .. "Every member's EP and GP will be lowered by " .. pct .. "%.\n"
         .. (floor > 0 and ("Anyone at " .. floor .. " EP or more stops at " .. floor .. " EP.\n") or "")
-        .. "GP never goes below " .. sepgp.VARS.basegp .. ". Every officer note is rewritten and the decay is posted to the guild.",
+        .. "GP never goes below " .. sepgp.VARS.basegp .. ". Every officer note is rewritten and the decay is posted to the guild.\n"
+        .. "Everyone's EP and GP before and after go into Officer > Decay log, where it can be undone.",
         function() Call(function() sepgp:decay_epgp_v3() end) end,
         "Decay EPGP by " .. pct .. "%?", "Yes, decay now")
     end)
-    UI.Tip(dec, "Decay", "Multiplies every member's EP and GP down by the decay %. Usually done once a week.")
+    UI.Tip(dec, "Decay", "Multiplies every member's EP and GP down by the decay %. Usually done once a week. Recorded in the Decay log.")
     local rs = UI.Button(big, "Reset all EPGP", 150, 22)
     rs:SetPoint("LEFT", dec, "RIGHT", 8, 0)
     rs:SetScript("OnClick", function()
@@ -1306,8 +1314,13 @@ UI.Page{ key = "officer", label = "Officer", tip = "EP awards, decay and the gui
     end)
     UI.Tip(lift, "Lift low EP", "Everyone with EP between 1 and the minimum EP (the red rows in Standings) is raised to the minimum. Members with 0 EP are left alone. Asks first.")
     f.liftBtn = lift
+    local dlog = UI.Button(big, "Decay log  -  check or undo a decay", 308, 22)
+    dlog:SetPoint("TOPLEFT", big, "TOPLEFT", 12, -94)
+    dlog:SetScript("OnClick", function() UI.Select("decay") end)
+    UI.Tip(dlog, "Decay log", "Every decay with everyone's EP and GP before and after, whether the officer notes really changed, and Undo for the latest one.")
+    f.decayLogBtn = dlog
     local note = UI.Text(big, 10, C.dim)
-    note:SetPoint("TOPLEFT", big, "TOPLEFT", 12, -96)
+    note:SetPoint("TOPLEFT", big, "TOPLEFT", 12, -126)
     note:SetWidth(cw - 24)
     note:SetJustifyH("LEFT")
     note:SetText("Decay never takes anyone from the minimum EP or above to below it, and new members start at the minimum EP. "

@@ -95,7 +95,21 @@ sepgp.givename_ep = Rec("ep")
 sepgp.givename_gp = Rec("gp")
 sepgp.award_raid_ep = Rec("raid")
 sepgp.award_reserve_ep = Rec("reserve")
-sepgp.decay_epgp_v3 = Rec("decay")
+function GuildRosterSetOfficerNote(i, note) if GUILD[i] then GUILD[i][8] = note end end
+-- like the real decay: x 0.9, nobody pushed below the minimum EP, GP not below the base
+sepgp.decay_epgp_v3 = function(self)
+  table.insert(calls, "decay")
+  for i = 1, GetNumGuildMembers(1) do
+    local name, _, _, _, _, _, _, onote = GetGuildRosterInfo(i)
+    local ep, gp = self:get_ep_v3(name, onote or ""), self:get_gp_v3(name, onote or "")
+    if ep and gp then
+      local e = math.floor(ep * sepgp_decay + 0.5)
+      if ep >= sepgp_minep then e = math.max(sepgp_minep, e) end
+      local g = math.max(300, math.floor(gp * sepgp_decay + 0.5))
+      GuildRosterSetOfficerNote(i, (string.gsub(onote, "{%d+:%d+}", "{" .. e .. ":" .. g .. "}")), true)
+    end
+  end
+end
 sepgp.afkcheck_reserves = Rec("afk")
 sepgp.shareSettings = Rec("share")
 sepgp.refreshPRTablets = function() end
@@ -103,6 +117,7 @@ sepgp.SetRefresh = function() end
 sepgp.reservesToggle = Rec("reservesToggle")
 sepgp.my_epgp = Rec("my_epgp")
 sepgp.adminSay = function() end
+sepgp.simpleSay = function(self, msg) Mock.said = msg end
 sepgp.addToLog = Rec("log")
 function sepgp:update_epgp_v3(ep, gp, i, name, note) table.insert(calls, "note:" .. name .. ":" .. tostring(ep)) end
 sepgp.OnMenuRequest = Rec("menu")
@@ -127,7 +142,7 @@ function GetAddOnInfo(n) if n == "pfUI" then return n, "pfUI", "", nil, 1, "DISA
 ITEM_QUALITY_COLORS = { [4] = { hex = "|cffa335ee" } }
 
 -- ------------------------------------------------------------ load
-for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Accounts.lua", "ui/Versions.lua", "ui/Minimap.lua" }) do dofile(f) end
+for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Accounts.lua", "ui/Decay.lua", "ui/Versions.lua", "ui/Minimap.lua" }) do dofile(f) end
 local UI = SEPGP_UI
 local function Dump() for i = 1, table.getn(Mock.printed) do print("chat: " .. Mock.printed[i]) end Mock.printed = {} end
 Mock.Fire("ADDON_LOADED", "shootyepgp")
@@ -663,6 +678,174 @@ do
   VV.Ask(true)
   ok(not SentV(s0, "SEPGPV", "^VQ$"), "members never ask")
   admin, gl = true, true
+end
+-- ---------------------------------------------------------------- decay log
+do
+  local DL = UI.Decay
+  local function SentD(from, pat)
+    for i = from + 1, table.getn(Mock.sent) do
+      if Mock.sent[i][1] == "SEPGPD" and string.find(Mock.sent[i][2], pat) then return Mock.sent[i][2] end
+    end
+  end
+  local function Row(name) for i = 1, table.getn(GUILD) do if GUILD[i][1] == name then return GUILD[i] end end end
+  local function Note(name) return Row(name)[8] end
+  local function SetNote(name, ep, gp) local g = Row(name) g[8] = (string.gsub(g[8], "{%d+:%d+}", "{" .. ep .. ":" .. gp .. "}")) end
+  local saved = {}
+  for i = 1, table.getn(GUILD) do saved[i] = GUILD[i][8] end
+  -- a note writer that really writes (the stand-in above only records)
+  local oldUpd = sepgp.update_epgp_v3
+  function sepgp:update_epgp_v3(ep, gp, i, name, note)
+    local g = GUILD[i]
+    local _, _, oe, og = string.find(g[8], "{(%d+):(%d+)}")
+    if ep then ep = math.max(0, ep) end
+    if gp then gp = math.max(300, gp) end
+    g[8] = (string.gsub(g[8], "{%d+:%d+}", "{" .. (ep or oe) .. ":" .. (gp or og) .. "}"))
+  end
+  admin, gl = true, true
+  UI.LayoutNav()
+  local setter = GuildRosterSetOfficerNote
+  local s0 = table.getn(Mock.sent)
+  sepgp:decay_epgp_v3()
+  local rec = DL.List()[1]
+  ok(rec and rec.n == 4 and rec.by == "Aldren" and rec.pct == 10, "decay recorded (" .. tostring(rec and rec.n) .. " members)")
+  local a
+  for i = 1, table.getn(rec.m) do if rec.m[i][1] == "Aldren" then a = rec.m[i] end end
+  ok(a and a[2] == 820 and a[3] == 410 and a[4] == 738 and a[5] == 369, "before and after caught from the note writes")
+  ok(Note("Corvan") == "{1350:810}" and Note("Dalia") == "notes here {108:300}", "the decay itself still ran (" .. Note("Corvan") .. ")")
+  ok(GuildRosterSetOfficerNote == setter, "note writer given back after the decay")
+  -- the check a few seconds later, against fresh notes
+  local asked = Mock.rosterAsked or 0
+  Mock.Tick(5)
+  ok((Mock.rosterAsked or 0) > asked, "guild notes fetched again after the decay")
+  Mock.Fire("GUILD_ROSTER_UPDATE")
+  Mock.Tick(3)
+  ok(rec.check and rec.check.ok == 4 and rec.check.missed == 0, "check: every note changed")
+  Mock.Tick(3)
+  ok(SentD(s0, "^DD;") and SentD(s0, "^DM;.*Corvan,1500,900,1350,810") and SentD(s0, "^DK;"), "record and check sent to the officers")
+  -- the page
+  UI.Open("decay")
+  local df = UI.pages.decay.frame
+  ok(UI.pages.decay.nav:IsShown(), "decay log topic for officers")
+  local row
+  for i = 1, table.getn(df.lv.list.view) do if df.lv.list.view[i].id == rec.id then row = df.lv.list.view[i] end end
+  ok(row and string.find(row.cells[5], "OK"), "list says it went through (" .. tostring(row and row.cells[5]) .. ")")
+  UI.pages.decay.open(df, rec.id)
+  ok(df.dv:IsShown() and table.getn(df.dv.list.view) == 4, "the decay shows its members")
+  ok(df.dv.list.heads[2].text:GetText() == "EP before" and df.dv.list.heads[5].text:GetText() == "GP after", "before / after columns")
+  -- a note that did not change, an award given after the decay
+  SetNote("Eldrin", 2000, 1200)
+  SetNote("Corvan", 1400, 810)
+  UI.RefreshPage()
+  local st = {}
+  for i = 1, table.getn(df.dv.list.view) do st[df.dv.list.view[i].id] = df.dv.list.view[i].cells[6] end
+  ok(string.find(st.Eldrin, "NOT decayed") and string.find(st.Corvan, "changed since") and string.find(st.Aldren, "decayed") and not string.find(st.Aldren, "NOT"), "state of every member now")
+  ok(df.dv.finish:IsShown(), "missed members can be decayed afterwards")
+  this = df.dv.finish
+  df.dv.finish.scripts.OnClick()
+  ok(UI.confirmFrame:IsShown() and string.find(UI.confirmFrame.text:GetText(), "Eldrin"), "decaying the missed asks first, naming who")
+  UI.ConfirmYes()
+  ok(Note("Eldrin") == "{1800:1080}", "missed member decayed (" .. Note("Eldrin") .. ")")
+  -- undo: everyone gets back what the decay took; the award since is kept
+  local s1 = table.getn(Mock.sent)
+  this = df.dv.undo
+  df.dv.undo.scripts.OnClick()
+  ok(UI.confirmFrame:IsShown() and string.find(UI.confirmFrame.title:GetText(), "Undo") and string.find(UI.confirmFrame.text:GetText(), "by Aldren"), "undo asks first, naming the decay")
+  UI.ConfirmYes()
+  ok(Note("Aldren") == "{820:410}" and Note("Corvan") == "{1550:900}" and Note("Dalia") == "notes here {120:300}" and Note("Eldrin") == "{2000:1200}",
+    "undo puts EP and GP back and keeps the award since (" .. Note("Corvan") .. ")")
+  ok(rec.undo and rec.undo.by == "Aldren" and rec.undo.n == 4, "undo recorded")
+  ok(Mock.said and string.find(Mock.said, "undone"), "undo posted in the report channel (" .. tostring(Mock.said) .. ")")
+  Mock.Tick(16)
+  ok(SentD(s1, "^DU;" .. string.gsub(rec.id, "%-", "%%-")), "undo sent to the officers")
+  ok(rec.undo.check and rec.undo.check.missed == 0, "undo checked")
+  local u
+  local us = H.All({ U = 1 })
+  for i = 1, table.getn(us) do u = us[i] end
+  ok(u and u.n == 10 and u.by == "Aldren", "undo in the EP / GP history")
+  UI.RefreshPage()
+  ok(df.dv.undo.disabledLook and not df.dv.finish:IsShown(), "no second undo")
+  st = {}
+  for i = 1, table.getn(df.dv.list.view) do st[df.dv.list.view[i].id] = df.dv.list.view[i].cells[6] end
+  ok(string.find(st.Aldren, "put back"), "members shown as put back")
+  DL.Undo(rec.id)
+  ok(Note("Aldren") == "{820:410}" and string.find(UI.confirmFrame.title:GetText(), "Cannot undo"), "undoing twice is refused")
+  UI.confirmFrame:Hide()
+  -- a second decay whose notes were put back by hand: undo refuses
+  Mock.Tick(130, 1)
+  sepgp:decay_epgp_v3()
+  local rec2 = DL.List()[1]
+  ok(rec2 ~= rec and rec2.n == 4, "second decay recorded")
+  ok(DL.Last().t == rec2.t, "last decay = the newest one not undone")
+  for i = 1, table.getn(rec2.m) do SetNote(rec2.m[i][1], rec2.m[i][2], rec2.m[i][3]) end
+  ok(string.find(DL.Refuse(rec2) or "", "looks undone"), "undo refused when the notes already show their before values")
+  -- members hidden from addons: nothing is decayed
+  local oldNum = GetNumGuildMembers
+  GetNumGuildMembers = function() return table.getn(GUILD) + 3 end
+  local n0 = table.getn(DL.List())
+  sepgp:decay_epgp_v3()
+  GetNumGuildMembers = oldNum
+  ok(Note("Aldren") == "{820:410}" and table.getn(DL.List()) == n0 and string.find(UI.confirmFrame.text:GetText(), "hidden"), "decay refused while members are hidden")
+  UI.confirmFrame:Hide()
+  -- another officer's decay arrives on the addon channel
+  Mock.Tick(200, 5)
+  local t3 = time()
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPD", "DD;" .. t3 .. "-Corvan;" .. t3 .. ",Corvan,10,300,300,2", "GUILD", "Corvan")
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPD", "DM;" .. t3 .. "-Corvan;Aldren,820,410,738,369~Eldrin,2000,1200,1800,1080", "GUILD", "Corvan")
+  local got = DL.Get(t3 .. "-Corvan")
+  ok(got and got.from == "Corvan" and table.getn(got.m) == 2 and got.n == 2 and DL.Fits(got), "another officer's decay stored")
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPD", "DD;" .. t3 .. "-Eldrin;" .. t3 .. ",Eldrin,10,300,300,2", "GUILD", "Dalia")
+  ok(not DL.Get(t3 .. "-Eldrin"), "a record only from the officer who decayed")
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPD", "DD;" .. (t3 + 1) .. "-Corvan;" .. (t3 + 1) .. ",Corvan,10,300,300,2", "GUILD", "Corvan")
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPD", "DM;" .. (t3 + 1) .. "-Corvan;Aldren,5820,4410,738,369~Eldrin,9000,9200,1800,1080", "GUILD", "Corvan")
+  ok(string.find(DL.Refuse(DL.Get((t3 + 1) .. "-Corvan")) or "", "do not fit"), "a record that is not a decay cannot be undone")
+  admin, gl = false, false
+  Mock.Fire("CHAT_MSG_ADDON", "SEPGPD", "DD;" .. (t3 + 2) .. "-Corvan;" .. (t3 + 2) .. ",Corvan,10,300,300,2", "GUILD", "Corvan")
+  ok(not DL.Get((t3 + 2) .. "-Corvan"), "members' copies keep no records")
+  UI.LayoutNav()
+  ok(not UI.pages.decay.nav:IsShown(), "decay log hidden from members")
+  admin, gl = true, true
+  UI.LayoutNav()
+  -- a decay that is only in the history: the GP check
+  Mock.Tick(600, 5)
+  local tD = time()
+  H.Add({ k = "G", t = tD - 100, n = 50, gp = 1200, w = "Eldrin" })
+  H.Add({ k = "G", t = tD - 90, n = 50, gp = 900, w = "Corvan" })
+  H.Add({ k = "D", t = tD, n = 10, by = "Corvan" })
+  SetNote("Eldrin", 2000, 1080)
+  SetNote("Corvan", 1500, 900)
+  UI.pages.decay.open(df, nil)
+  local hrow
+  for i = 1, table.getn(df.lv.list.view) do if df.lv.list.view[i].id == "H" .. tD then hrow = df.lv.list.view[i] end end
+  ok(hrow and string.find(hrow.cells[5], "history only"), "a decay from the history is listed")
+  UI.pages.decay.open(df, "H" .. tD)
+  st = {}
+  for i = 1, table.getn(df.dv.list.view) do st[df.dv.list.view[i].id] = df.dv.list.view[i].cells[6] end
+  ok(st.Eldrin and string.find(st.Eldrin, "decayed") and not string.find(st.Eldrin, "NOT") and st.Corvan and string.find(st.Corvan, "NOT decayed"), "GP check: Eldrin decayed, Corvan not")
+  ok(not df.dv.undo:IsShown() and df.dv.list.heads[3].text:GetText() == "known", "no undo without a record")
+  -- the decay button warns when the last decay was recent
+  UI.Select("officer")
+  this = UI.pages.officer.frame.decayLogBtn
+  UI.pages.officer.frame.decayLogBtn.scripts.OnClick()
+  ok(UI.current == "decay", "Officer page button opens the decay log")
+  UI.Select("officer")
+  -- the history reads summer stamps an hour late no more; old late copies move
+  local oldDate = date
+  date = function(fmt, t) if fmt == "*t" then return { hour = 8 } end return "14 Oct" end
+  local t, raw = H.ParseStamp("Oct/20 07:13:11")
+  ok(raw and t == raw - 3600, "summer stamp corrected by an hour")
+  H.Add({ k = "D", t = raw, n = 12 })                      -- read late before the fix
+  H.Add({ k = "D", t = raw - 3600, n = 12, by = "Aldren" })  -- heard live
+  local lateG = H.Add({ k = "G", t = raw, n = 77, gp = 777, w = "Dalia" })
+  H.FromLog("Oct/20 07:13:11", "All EP and GP decayed by 12%")
+  H.FromLog("Oct/20 07:13:11", "Awarding 77 GP to Dalia. (Previous: 700, New: 777)")
+  date = oldDate
+  local d12 = 0
+  local ds = H.All({ D = 1 })
+  for i = 1, table.getn(ds) do if ds[i].n == 12 then d12 = d12 + 1 end end
+  ok(d12 == 1, "late copy of a decay heard live dropped (" .. d12 .. ")")
+  ok(lateG.t == raw - 3600 and table.getn(H.For("Dalia")) > 0, "late GP line moved to the right time")
+  sepgp.update_epgp_v3 = oldUpd
+  for i = 1, table.getn(GUILD) do GUILD[i][8] = saved[i] end
 end
 -- ---------------------------------------------------------------- legacy.lua (the old windows' stand-ins)
 do
