@@ -625,13 +625,14 @@ local function BidRows(bids, offspec)
     local m = UI.byName and UI.byName[name]
     local label = UI.ClassName(name, class)
     if flag == "OSPRIO" then label = UI.Paint(C.red, "[PRIO] ") .. label end
+    if flag == "XMOG" then label = UI.Paint(C.gold, "rolled " .. (b[8] and tostring(b[8]) or "-") .. "  ") .. label end
     -- the addon's order: at / above minimum EP first, then PR, then EP
     local order = (below and 1000000 or 0) - pr * 1000 - ep / 100000
     table.insert(rows, {
       id = name, data = { name = name, pr = pr, offspec = offspec, prio = (flag == "OSPRIO") },
       cells = { label, m and m.rank or "", below and UI.Paint(C.red, UI.Fmt(ep)) or UI.Fmt(ep), UI.Fmt(gp),
                 below and UI.Paint(C.red, UI.FmtPR(pr)) or UI.Paint(C.gold, UI.FmtPR(pr)), main ~= "" and ("alt of " .. main) or "" },
-      sort = { order = order, name = name, rank = m and m.rankIndex or 99, ep = ep, gp = gp, pr = pr, main = main, tie = name },
+      sort = { order = order, roll = tonumber(b[8]) or -1, name = name, rank = m and m.rankIndex or 99, ep = ep, gp = gp, pr = pr, main = main, tie = name },
     })
   end
   return rows
@@ -669,10 +670,11 @@ UI.Page{ key = "bids", label = "Bids", tip = "The item up for bids and everyone 
     local nRows = math.floor((PH - 60 - 3 * 48 - 30) / 3 / 18)
     f.ms = BidList(f, "Mainspec bids", -60, nRows)
     f.os = BidList(f, "Offspec bids", -60 - nRows * 18 - 50, nRows)
-    f.xmog = BidList(f, "Transmog rolls", -60 - 2 * (nRows * 18 + 50), nRows)
+    f.xmog = BidList(f, "Transmog / Mounts / Bags (/roll 69)", -60 - 2 * (nRows * 18 + 50), nRows)
+    f.xmog.sortKey, f.xmog.sortDesc = "roll", true
     f.ms.emptyText = "No mainspec bids."
     f.os.emptyText = "No offspec bids."
-    f.xmog.emptyText = "No transmog rolls."
+    f.xmog.emptyText = "Nobody rolled."
     local function Winner(r)
       if not UI.IsAdmin() then return end
       local d = r.data
@@ -1238,7 +1240,23 @@ UI.Page{ key = "settings", label = "Settings", tip = "Your own shootyepgp settin
       function() UI.BidPopup.Test() end, function() return UI.BidPopup.frame end)
     local officerRow = PlaceRows(-112, "officer", "Officer bid window", "Shows the officers' bid window with sample bids. Drag it where you want it, then lock it.",
       function() UI.BidWindow.Test() end, function() return UI.BidWindow.frame end)
+    -- the wish list alert: which sound, and a test
+    UI.Label(pw, "Wish list sound", 12, -196)
+    local sounds = {}
+    for i = 1, table.getn(UI.BidPopup.SOUNDS) do sounds[i] = { key = UI.BidPopup.SOUNDS[i].key, label = UI.BidPopup.SOUNDS[i].label } end
+    f.sound = UI.Dropdown(pw, 150, sounds, function() return UI.BidPopup.Sound() end, function(k)
+      UI.DB().wishSound = k
+      UI.BidPopup.PlayAlert(k)
+    end)
+    f.sound:SetPoint("TOPLEFT", pw, "TOPLEFT", 112, -193)
+    UI.Tip(f.sound, "Wish list sound", "Plays with the big alert when an item on your wish list comes up for bids. Picking one plays it.")
+    local tw = UI.Button(pw, "Test", 64, 20)
+    tw:SetPoint("TOPRIGHT", pw, "TOPRIGHT", -12, -193)
+    tw:SetScript("OnClick", function() UI.BidPopup.TestWish() end)
+    UI.Tip(tw, "Test the wish list alert", "Shows the bid pop-up as a wish list item looks, the big alert and the sound.")
+
     table.insert(Refreshers(f), function()
+      f.sound.Refresh()
       for i = 1, table.getn(f.places) do
         local p = f.places[i]
         local db = UI.Place.DB(p.key)

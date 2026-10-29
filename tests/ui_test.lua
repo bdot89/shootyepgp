@@ -1129,21 +1129,39 @@ do
   -- a real call: transmog whispers tmog
   BP.OnCall(UI.Prices.Link(17076), "Corvan", 1, 1, nil)
   ok(not BP.frame.test and BP.frame.xmog, "real pop-up has a Transmog button")
+  local rolled
+  RandomRoll = function(lo, hi) rolled = lo .. "-" .. hi end
   this = BP.frame.xmog
   BP.frame.xmog.scripts.OnClick()
-  ok(told[1] and told[1][1] == "tmog" and told[1][3] == "Corvan", "Transmog whispers tmog to the loot master")
+  ok(rolled == "1-69" and table.getn(told) == 0 and BP.frame.xmog:GetText() == "Transmog / Mounts / Bags", "Transmog / Mounts / Bags does /roll 69")
+  -- rolls heard while bids are open, highest first
+  sepgp.bids_xmog = {}
+  BP.OnRoll("Dalia rolls 12 (1-69)")
+  BP.OnRoll("Corvan rolls 55 (1-69)")
+  BP.OnRoll("Corvan rolls 60 (1-69)")
+  BP.OnRoll("Eldrin rolls 99 (1-100)")
+  ok(table.getn(sepgp.bids_xmog) == 2 and sepgp.bids_xmog[2][1] == "Corvan" and sepgp.bids_xmog[2][8] == 55, "1-69 rolls recorded, first roll counts, other rolls ignored")
+  -- wish list look and sound
+  UI.Prices.SetState(17076, "wish")
+  local nSounds = table.getn(Mock.sounds)
+  sepgp_ui.wishSound = "loot3"
+  BP.OnCall(UI.Prices.Link(17076), "Corvan", 1, 1, nil)
+  ok(BP.frame.title:GetText() == "WISHLISTED ITEM!", "a wish list item says so on the pop-up")
+  ok(Mock.sounds[nSounds + 1] and string.find(Mock.sounds[nSounds + 1], "loot-3.wav", 1, true), "the chosen wish list sound plays")
+  UI.Prices.SetState(17076, nil)
+  BP.TestWish()
+  ok(BP.frame.test and string.find(BP.frame.title:GetText(), "WISHLISTED", 1, true), "wish list test")
   -- officer window test mode
   this = s.places[2].bits[2]
   s.places[2].bits[2].scripts.OnClick()
   local BW = UI.BidWindow
   ok(BW.frame:IsShown() and BW.test, "test officer bid window shows")
-  ok(string.find(BW.frame.sections[3].lines[1].name:GetText(), "Testmage", 1, true) and string.find(BW.frame.sections[2].lines[1].name:GetText(), "PRIO", 1, true), "it lists sample mainspec, offspec and transmog")
+  ok(string.find(BW.frame.sections[3].lines[1].name:GetText(), "Testpriest", 1, true) and string.find(BW.frame.sections[2].lines[1].name:GetText(), "PRIO", 1, true), "it lists sample mainspec, offspec and transmog")
   -- real bids incl. a transmog roll
-  sepgp.bids_xmog = { { "Dalia", "Mage", 120, 300, 0.4, "", "XMOG" } }
   BW.Open()
-  ok(not BW.test and string.find(BW.frame.sections[3].lines[1].name:GetText(), "Dalia", 1, true) and string.find(BW.frame.sections[1].lines[1].name:GetText(), "Corvan", 1, true), "officer window shows real bids and transmog rolls")
+  ok(not BW.test and string.find(BW.frame.sections[3].lines[1].name:GetText(), "Corvan", 1, true) and BW.frame.sections[3].lines[1].a:GetText() == "55" and string.find(BW.frame.sections[1].lines[1].name:GetText(), "Corvan", 1, true), "officer window shows real bids and transmog rolls")
   UI.Select("bids")
-  ok(UI.pages.bids.frame.xmog.view[1] and UI.pages.bids.frame.xmog.view[1].id == "Dalia", "Bids topic lists transmog rolls")
+  ok(UI.pages.bids.frame.xmog.view[1] and UI.pages.bids.frame.xmog.view[1].id == "Corvan", "Bids topic lists rolls, highest first")
   admin = false
   UI.LayoutNav()
   UI.Select("settings")
