@@ -638,7 +638,7 @@ local function BidRows(bids, offspec)
 end
 
 UI.Page{ key = "bids", label = "Bids", tip = "The item up for bids and everyone who bid on it. Officers only.", admin = true,
-  badge = function() return table.getn(sepgp.bids_main or {}) + table.getn(sepgp.bids_off or {}) end,
+  badge = function() return table.getn(sepgp.bids_main or {}) + table.getn(sepgp.bids_off or {}) + table.getn(sepgp.bids_xmog or {}) end,
   build = function(f)
     local h = UI.Card(f, nil, PW, 52)
     h:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
@@ -666,11 +666,13 @@ UI.Page{ key = "bids", label = "Bids", tip = "The item up for bids and everyone 
     })
     Gate(f, b[1], ML)
     Gate(f, b[2], ML)
-    local nRows = math.floor((PH - 60 - 36 - 48 - 30) / 2 / 18)
+    local nRows = math.floor((PH - 60 - 3 * 48 - 30) / 3 / 18)
     f.ms = BidList(f, "Mainspec bids", -60, nRows)
     f.os = BidList(f, "Offspec bids", -60 - nRows * 18 - 50, nRows)
+    f.xmog = BidList(f, "Transmog rolls", -60 - 2 * (nRows * 18 + 50), nRows)
     f.ms.emptyText = "No mainspec bids."
     f.os.emptyText = "No offspec bids."
+    f.xmog.emptyText = "No transmog rolls."
     local function Winner(r)
       if not UI.IsAdmin() then return end
       local d = r.data
@@ -705,10 +707,11 @@ UI.Page{ key = "bids", label = "Bids", tip = "The item up for bids and everyone 
     f.counter:SetText(sepgp_bids and sepgp_bids._counterText or "")
     f.ms:SetRows(BidRows(sepgp.bids_main, false), true)
     f.os:SetRows(BidRows(sepgp.bids_off, true), true)
+    f.xmog:SetRows(BidRows(sepgp.bids_xmog, true), true)
     if UI.IsAdmin() then
       f.help:SetText("Click a bidder to announce them as the winner. Shift-click the item to link it in chat. Bids reach officers only.")
     else
-      f.help:SetText("To bid, click [MAINSPEC] or [OFFSPEC] in the loot master's raid message, or whisper them + or -. Officers see the bid list.")
+      f.help:SetText("To bid, use the bid pop-up, click [MAINSPEC] or [OFFSPEC] in the loot master's raid message, or whisper them + , - or tmog. Officers see the bid list.")
     end
   end,
 }
@@ -1183,6 +1186,70 @@ UI.Page{ key = "settings", label = "Settings", tip = "Your own shootyepgp settin
       UI.RefreshPage()
     end)
     UI.Tip(reset, "Reset window", "Size 100%, background 97%, back in the middle of the screen.")
+
+    -- pop-up windows: test, place, size, lock (guild leader, 29 Oct 2026)
+    local pw = UI.Card(f, "Pop-up windows", cw, PH - 214 - 8)
+    pw:SetPoint("TOPRIGHT", w, "BOTTOMRIGHT", 0, -8)
+    f.places = {}
+    local function PlaceRows(y, key, title, tip, test, frameOf)
+      local h = UI.Text(pw, 11, C.gold)
+      h:SetPoint("TOPLEFT", pw, "TOPLEFT", 12, y)
+      h:SetText(title)
+      local tb = UI.Button(pw, "Test", 64, 20)
+      tb:SetPoint("TOPRIGHT", pw, "TOPRIGHT", -12, y + 3)
+      tb:SetScript("OnClick", function() test() end)
+      UI.Tip(tb, "Test " .. string.lower(title), tip)
+      local lock = UI.Switch(pw)
+      lock:SetPoint("TOPLEFT", pw, "TOPLEFT", 12, y - 22)
+      local ll = UI.Text(pw, 11)
+      ll:SetPoint("LEFT", lock, "RIGHT", 8, 0)
+      ll:SetText("Locked in place")
+      lock.onToggle = function(on)
+        UI.Place.SetLocked(key, on)
+        lock.Set(on)
+        local fr = frameOf()
+        if fr and fr:IsShown() then test() end
+      end
+      local s = UI.Slider(pw, cw - 160)
+      s:SetPoint("TOPLEFT", pw, "TOPLEFT", 60, y - 48)
+      s:SetMinMaxValues(0.6, 1.6)
+      s:SetValueStep(0.05)
+      local sl = UI.Text(pw, 11)
+      sl:SetPoint("TOPLEFT", pw, "TOPLEFT", 12, y - 48)
+      sl:SetText("Size")
+      local st = UI.Text(pw, 11, C.dim)
+      st:SetPoint("TOPRIGHT", pw, "TOPRIGHT", -78, y - 48)
+      s.onValue = function(v) st:SetText(math.floor(v * 100 + 0.5) .. "%") end
+      s:SetScript("OnMouseUp", function()
+        UI.Place.SetScale(key, math.floor(this:GetValue() * 20 + 0.5) / 20, frameOf())
+      end)
+      local rs = UI.Button(pw, "Reset", 56, 20)
+      rs:SetPoint("TOPRIGHT", pw, "TOPRIGHT", -12, y - 45)
+      rs:SetScript("OnClick", function()
+        UI.Place.Reset(key, frameOf())
+        UI.RefreshPage()
+      end)
+      UI.Tip(rs, "Reset", "Back to its first spot, size 100%, unlocked.")
+      local row = { key = key, lock = lock, slider = s, text = st, bits = { h, tb, lock, ll, s, sl, st, rs } }
+      table.insert(f.places, row)
+      return row
+    end
+    PlaceRows(-32, "bid", "Bid pop-up", "Shows a sample of the pop-up every raider gets when bids open (Mainspec / Offspec / Transmog / Pass). Drag it where you want it, then lock it.",
+      function() UI.BidPopup.Test() end, function() return UI.BidPopup.frame end)
+    local officerRow = PlaceRows(-112, "officer", "Officer bid window", "Shows the officers' bid window with sample bids. Drag it where you want it, then lock it.",
+      function() UI.BidWindow.Test() end, function() return UI.BidWindow.frame end)
+    table.insert(Refreshers(f), function()
+      for i = 1, table.getn(f.places) do
+        local p = f.places[i]
+        local db = UI.Place.DB(p.key)
+        p.lock.Set(db.locked and true or false)
+        UI.SliderSet(p.slider, db.scale or 1)
+        p.text:SetText(math.floor((db.scale or 1) * 100 + 0.5) .. "%")
+      end
+      for i = 1, table.getn(officerRow.bits) do
+        if UI.IsAdmin() then officerRow.bits[i]:Show() else officerRow.bits[i]:Hide() end
+      end
+    end)
 
     local n = UI.Card(f, "Good to know", cw, 100)
     n:SetPoint("TOPLEFT", a, "BOTTOMLEFT", 0, -8)

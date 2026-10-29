@@ -146,7 +146,7 @@ ITEM_QUALITY_COLORS = { [4] = { hex = "|cffa335ee" } }
 -- ------------------------------------------------------------ load
 sepgp.gp_prices = { [16900] = { 175, "T2" }, [19402] = { 225, "T2" } }
 sepgp_price_edits = { [19402] = { gp = 225, by = "Aldren", at = 1 }, [16900] = { gp = 200, by = "Aldren", at = 2 } }
-for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Accounts.lua", "ui/Decay.lua", "loot_db.lua", "ui/Prices.lua", "ui/BidPopup.lua", "ui/QuickPoints.lua", "ui/Versions.lua", "ui/Minimap.lua" }) do dofile(f) end
+for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Accounts.lua", "ui/Decay.lua", "loot_db.lua", "ui/Prices.lua", "ui/BidPopup.lua", "ui/BidWindow.lua", "ui/QuickPoints.lua", "ui/Versions.lua", "ui/Minimap.lua" }) do dofile(f) end
 local UI = SEPGP_UI
 local function Dump() for i = 1, table.getn(Mock.printed) do print("chat: " .. Mock.printed[i]) end Mock.printed = {} end
 Mock.Fire("ADDON_LOADED", "shootyepgp")
@@ -872,8 +872,14 @@ do
   dofile("legacy.lua")
   AceLibrary = oldLib
   UI.frame:Hide()
+  local wasAdmin = admin
+  admin = true
   sepgp_bids:Toggle(true)
-  ok(UI.frame:IsShown() and UI.current == "bids", "a new bid opens the window on Bids (as the old window did)")
+  ok(UI.BidWindow.frame and UI.BidWindow.frame:IsShown() and not UI.BidWindow.test, "a new bid opens the officers' bid window")
+  UI.BidWindow.frame:Hide()
+  sepgp_bids:Toggle()
+  ok(UI.frame:IsShown() and UI.current == "bids", "Toggle() still opens the Bids topic")
+  admin = wasAdmin
   UI.Select("home")
   sepgp_bids:Toggle(true)
   ok(UI.current == "home", "while the window is open a new bid only redraws it")
@@ -1091,6 +1097,61 @@ do
     end
     ok(found and string.find(found.cells[3], "-", 1, true), "decay listed in " .. who .. "'s history with the EP it took (" .. tostring(found and found.cells[2]) .. ")")
   end
+end
+-- ---------------------------------------------------------------- pop-up windows: test, place, size, lock; transmog
+do
+  admin = true
+  local told = {}
+  local oldSend = SendChatMessage
+  SendChatMessage = function(msg, ch, lang, to) table.insert(told, { msg, ch, to }) end
+  sepgp.inRaid = function() return true end
+  UI.LayoutNav()
+  UI.Select("settings")
+  local s = UI.pages.settings.frame
+  ok(s.places and table.getn(s.places) == 2, "Settings has the pop-up window rows")
+  this = s.places[1].bits[2]
+  s.places[1].bits[2].scripts.OnClick()
+  local BP = UI.BidPopup
+  ok(BP.frame:IsShown() and BP.frame.test and BP.frame.title:GetText() == "Test bid pop-up", "test bid pop-up shows")
+  this = BP.frame.xmog
+  BP.frame.xmog.scripts.OnClick()
+  ok(table.getn(told) == 0, "the test pop-up sends nothing")
+  -- drag it somewhere, size it, lock it
+  this = BP.frame
+  BP.frame.scripts.OnDragStart()
+  BP.frame.scripts.OnDragStop()
+  local p = UI.Place.DB("bid")
+  ok(p.x == 200 and p.y == 650, "where it was dropped is saved (" .. tostring(p.x) .. "," .. tostring(p.y) .. ")")
+  UI.Place.SetScale("bid", 1.25, BP.frame)
+  ok(p.scale == 1.25 and p.x == 160, "size saved, centre kept on screen")
+  s.places[1].lock.onToggle(true)
+  ok(p.locked and sepgp_ui.place.bid.locked, "locked and saved")
+  -- a real call: transmog whispers tmog
+  BP.OnCall(UI.Prices.Link(17076), "Corvan", 1, 1, nil)
+  ok(not BP.frame.test and BP.frame.xmog, "real pop-up has a Transmog button")
+  this = BP.frame.xmog
+  BP.frame.xmog.scripts.OnClick()
+  ok(told[1] and told[1][1] == "tmog" and told[1][3] == "Corvan", "Transmog whispers tmog to the loot master")
+  -- officer window test mode
+  this = s.places[2].bits[2]
+  s.places[2].bits[2].scripts.OnClick()
+  local BW = UI.BidWindow
+  ok(BW.frame:IsShown() and BW.test, "test officer bid window shows")
+  ok(string.find(BW.frame.sections[3].lines[1].name:GetText(), "Testmage", 1, true) and string.find(BW.frame.sections[2].lines[1].name:GetText(), "PRIO", 1, true), "it lists sample mainspec, offspec and transmog")
+  -- real bids incl. a transmog roll
+  sepgp.bids_xmog = { { "Dalia", "Mage", 120, 300, 0.4, "", "XMOG" } }
+  BW.Open()
+  ok(not BW.test and string.find(BW.frame.sections[3].lines[1].name:GetText(), "Dalia", 1, true) and string.find(BW.frame.sections[1].lines[1].name:GetText(), "Corvan", 1, true), "officer window shows real bids and transmog rolls")
+  UI.Select("bids")
+  ok(UI.pages.bids.frame.xmog.view[1] and UI.pages.bids.frame.xmog.view[1].id == "Dalia", "Bids topic lists transmog rolls")
+  admin = false
+  UI.LayoutNav()
+  UI.Select("settings")
+  ok(not s.places[2].bits[2]:IsShown(), "members do not get the officer window row")
+  BW.frame:Hide()
+  BW.Open()
+  ok(not BW.frame:IsShown(), "members never get the officer window")
+  SendChatMessage = oldSend
 end
 -- slash
 SlashCmdList.SEPGPUI("logs")

@@ -45,7 +45,18 @@ sepgp_reserves = { Toggle = Toggler("reserves"), Refresh = Redraw }
 -- ------------------------------------------------------------------ bids
 -- (from bids.lua; the bid list itself is the new window's Bids page)
 sepgp_bids = sepgp:NewModule("sepgp_bids", "AceEvent-2.0")
-sepgp_bids.Toggle = Toggler("bids")
+local bidsPage = Toggler("bids")
+-- new bids (Toggle(true)) open the officers' small bid window (ui\BidWindow.lua);
+-- Toggle() still opens / closes the Bids topic
+sepgp_bids.Toggle = function(self, forceShow)
+  local UI = SEPGP_UI
+  if forceShow and UI and UI.BidWindow then
+    UI.BidWindow.Open()
+    Redraw()
+    return
+  end
+  return bidsPage(self, forceShow)
+end
 sepgp_bids.Refresh = Redraw
 
 function sepgp_bids:announceWinnerMS(name, pr)

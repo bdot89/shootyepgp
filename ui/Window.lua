@@ -509,6 +509,7 @@ end
 function UI.Signature()
   local bids = (sepgp and sepgp.bids_main and table.getn(sepgp.bids_main) or 0) * 1000
              + (sepgp and sepgp.bids_off and table.getn(sepgp.bids_off) or 0)
+             + (sepgp and sepgp.bids_xmog and table.getn(sepgp.bids_xmog) or 0) * 100000
   local item = sepgp and sepgp.bid_item and sepgp.bid_item.link or ""
   local res = sepgp and sepgp.reserves and table.getn(sepgp.reserves) or 0
   local loot = type(sepgp_looted) == "table" and table.getn(sepgp_looted) or 0

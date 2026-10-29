@@ -189,6 +189,7 @@ sepgp.cmdtable = function()
 end
 sepgp.reserves = {}
 sepgp.bids_main,sepgp.bids_off,sepgp.bid_item = {},{},{}
+sepgp.bids_xmog = {} -- transmog rolls (whisper "tmog" / "xmog" / "transmog"), rows as bids_main
 sepgp.timer = CreateFrame("Frame")
 sepgp.timer.cd_text = ""
 sepgp.timer:Hide()
@@ -997,6 +998,13 @@ function sepgp:addonComms(prefix,message,channel,sender)
               if not exists then
                 table.insert(sepgp.bids_main, {name, class, ep, gp, pr, main_name or "", prio_flag or ""})
               end
+            elseif bidType == "XMOG" then
+              for i = 1, table.getn(sepgp.bids_xmog) do
+                if sepgp.bids_xmog[i][1] == name then exists = true break end
+              end
+              if not exists then
+                table.insert(sepgp.bids_xmog, {name, class, ep, gp, pr, main_name or "", "XMOG"})
+              end
             elseif bidType == "OS" or bidType == "OSPRIO" then
               for i = 1, table.getn(sepgp.bids_off) do
                 if sepgp.bids_off[i][1] == name then
@@ -1669,6 +1677,7 @@ local lootBid = {}
 lootBid.ms = {"(%+)",".+(%+).*",".*(%+).+",".*(%+).*","(ms)","(need)"}
 lootBid.os = {"(%-)",".+(%-).*",".*(%-).+",".*(%-).*","(os)","(greed)"}
 lootBid.msos = {".*[oO][sS][pP][rR][iI][oO].*"}
+lootBid.xmog = {"tmog","xmog","transmog"} -- plain words, matched on the lower-cased whisper
 
 
 function sepgp:captureBid(text, sender)
@@ -1676,7 +1685,16 @@ function sepgp:captureBid(text, sender)
   if not (self:lootMaster()) then return end
   if not sepgp.bid_item.link then return end
 
-  local mskw_found, oskw_found, msoskw_found
+  local mskw_found, oskw_found, msoskw_found, xmogkw_found
+
+  -- Check for a transmog roll first (the new bid pop-up whispers "tmog")
+  local lowtext = string.lower(text)
+  for _, f in ipairs(lootBid.xmog) do
+    if string.find(lowtext, f, 1, true) then
+      xmogkw_found = true
+      break
+    end
+  end
 
   -- Check for + (mainspec)
   for _, f in ipairs(lootBid.ms) do
@@ -1702,7 +1720,8 @@ function sepgp:captureBid(text, sender)
     end
   end
 
-  if mskw_found or oskw_found or msoskw_found then
+  if xmogkw_found then mskw_found, oskw_found, msoskw_found = nil, nil, nil end
+  if mskw_found or oskw_found or msoskw_found or xmogkw_found then
     if self:inRaid(sender) and not bids_blacklist[sender] then
       local prio_flag = "OSPRIO"
       for i = 1, GetNumGuildMembers() do
@@ -1726,7 +1745,11 @@ function sepgp:captureBid(text, sender)
           bids_blacklist[sender] = true
 
           local pr = ep / gp
-          if mskw_found then
+          if xmogkw_found then
+            -- a transmog roll: listed for the officers next to the bids
+            table.insert(sepgp.bids_xmog, {name, class, ep, gp, pr, main_name or "", "XMOG"})
+            self:queueBidBroadcast("XMOG", name, class, ep, gp, pr, main_name or "", "XMOG")
+          elseif mskw_found then
             -- It's a + (Mainspec)
             if main_name then
               table.insert(sepgp.bids_main, {name, class, ep, gp, pr, main_name, ""})
@@ -1778,6 +1801,7 @@ function sepgp:clearBids(reset)
   sepgp.bid_item = {}
   sepgp.bids_main = {}
   sepgp.bids_off = {}
+  sepgp.bids_xmog = {}
   bids_blacklist = {}
   bid_broadcast_queue = {}
   if self:IsEventScheduled("shootyepgpBidTimeout") then
