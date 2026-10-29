@@ -88,15 +88,15 @@ UI.Page{ key = "quickpoints", label = "Quick EP / GP", after = "officer", parent
     local cols = {
       { key = "tick", label = "", width = 14, check = true },
       { key = "name", label = "Name", width = 130, sort = "asc" },
-      { key = "rank", label = "Rank", width = 110, sort = "asc" },
-      { key = "ep", label = "EP", width = 54, align = "RIGHT", sort = true },
-      { key = "gp", label = "GP", width = 54, align = "RIGHT", sort = true },
-      { key = "pr", label = "PR", width = 54, align = "RIGHT", sort = true },
+      { key = "rank", label = "Rank", width = 100, sort = "asc" },
+      { key = "ep", label = "EP", width = 48, align = "RIGHT", sort = true },
+      { key = "gp", label = "GP", width = 44, align = "RIGHT", sort = true },
+      { key = "pr", label = "PR", width = 48, align = "RIGHT", sort = true },
     }
     local nRows = math.floor((PH - 28 - 24 - 20) / 18)
     local l = UI.List(f, cols, 18, nRows)
     l:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -28)
-    l:SetWidth(PW - 214)
+    l:SetWidth(PW - 208)
     l:SetHeight(nRows * 18 + 24)
     l.sortKey, l.sortDesc = "name", false
     l.checksOn = true
@@ -114,30 +114,32 @@ UI.Page{ key = "quickpoints", label = "Quick EP / GP", after = "officer", parent
     f.count:SetPoint("TOPLEFT", l, "BOTTOMLEFT", 2, -5)
 
     -- the amount and the buttons
-    local c = UI.Card(f, "Give to the ticked", 206, 200)
+    local c = UI.Card(f, "Give to the ticked", 200, 214)
     c:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, -28)
     f.tickInfo = UI.Text(c, 12, C.gold)
     f.tickInfo:SetPoint("TOPLEFT", c, "TOPLEFT", 12, -34)
     UI.Label(c, "Amount", 12, -62)
-    f.amount = UI.EditBox(c, 80)
+    f.amount = UI.EditBox(c, 70)
     f.amount:SetMaxLetters(6)
-    f.amount:SetPoint("TOPLEFT", c, "TOPLEFT", 112, -59)
+    f.amount:SetPoint("TOPRIGHT", c, "TOPRIGHT", -12, -59)
     f.amount:SetText("100")
     UI.Tip(f.amount, "Amount", "How many points each ticked member gets. For EP a minus gives a penalty, e.g. -50.")
-    local ep = UI.Button(c, "+ EP to ticked", 182, 24)
+    local ep = UI.Button(c, "+ EP to ticked", 176, 24)
     ep:SetPoint("TOPLEFT", c, "TOPLEFT", 12, -92)
     ep:SetScript("OnClick", function() Ask(f, "EP") end)
     UI.Tip(ep, "Give EP", "Adds the amount to every ticked member's EP (to their main when alts share EPGP). Asks first.")
-    local gp = UI.Button(c, "+ GP to ticked", 182, 24)
+    local gp = UI.Button(c, "+ GP to ticked", 176, 24)
     gp:SetPoint("TOPLEFT", c, "TOPLEFT", 12, -122)
     gp:SetScript("OnClick", function() Ask(f, "GP") end)
     UI.Tip(gp, "Give GP", "Adds the amount to every ticked member's GP (to their main when alts share EPGP). Asks first.")
     f.epBtn, f.gpBtn = ep, gp
     local note = UI.Text(c, 10, C.dim)
-    note:SetPoint("TOPLEFT", c, "TOPLEFT", 12, -156)
-    note:SetWidth(182)
+    note:SetPoint("TOPLEFT", c, "TOPLEFT", 12, -158)
+    note:SetWidth(176)
+    note:SetHeight(44)
     note:SetJustifyH("LEFT")
-    note:SetText("Alts are not listed: their points go to their main.")
+    note:SetJustifyV("TOP")
+    note:SetText("Alts are not listed:\ntheir points go to their main.")
   end,
   refresh = function(f)
     local roster = UI.Roster()
