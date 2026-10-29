@@ -186,7 +186,7 @@ UI.Page{ key = "home", label = "Home", tip = "Your EPGP, the guild's rules and w
     g:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
     f.tier = InfoLine(g, -34, "Raid progress", "The highest raid tier the guild is doing. Item GP prices and suggested EP awards are scaled by it.")
     f.decay = InfoLine(g, -56, "Decay per run", "When an officer runs a decay, everyone's EP and GP are multiplied down by this much. Keeps old points from piling up.")
-    f.osp = InfoLine(g, -78, "Offspec price", "An offspec item costs this share of its normal GP.")
+    f.osp = InfoLine(g, -78, "Offspec price", "An offspec item costs this share of its normal GP. Each raid tier has its own share (Prices shows each item's offspec GP); this is the current tier's.")
     f.minep = InfoLine(g, -100, "Minimum EP", "Members below this EP are listed after everyone above it in standings and bids.")
     f.basegp = InfoLine(g, -122, "Starting GP", "Everyone's GP starts here and never drops below it (so PR = EP / GP never divides by zero).")
     f.alts = InfoLine(g, -144, "Alts use main's EPGP", "When on, an alt's EP and GP go to the main named in the alt's officer note as {Main}.")
@@ -245,7 +245,7 @@ UI.Page{ key = "home", label = "Home", tip = "Your EPGP, the guild's rules and w
     local decay = math.floor((1 - (sepgp_decay or V.decay)) * 100 + 0.5)
     f.tier:SetText(tostring(sepgp_progress or "T1"))
     f.decay:SetText(decay .. "%")
-    f.osp:SetText(math.floor((sepgp_discount or 0.25) * 100 + 0.5) .. "%")
+    f.osp:SetText(math.floor(UI.Prices.Rate(sepgp_progress) * 100 + 0.5) .. "%" .. UI.Paint(C.dim, "  (" .. tostring(sepgp_progress or "T1") .. ")"))
     f.minep:SetText((sepgp_minep or 0) > 0 and tostring(sepgp_minep) or "none")
     f.basegp:SetText(tostring(V.basegp))
     f.alts:SetText(sepgp_altspool and UI.Paint(C.on, "on") .. "  (" .. math.floor((sepgp_altpercent or 1) * 100 + 0.5) .. "% of EP)" or UI.Paint(C.dim, "off"))
@@ -674,9 +674,9 @@ UI.Page{ key = "bids", label = "Bids", tip = "The item up for bids and everyone 
     local it = sepgp.bid_item or {}
     if it.link then
       f.itemText:SetText(it.link)
-      local ok, price = pcall(sepgp_prices.GetPrice, sepgp_prices, it.link, sepgp_progress)
+      local ok, osPrice, price = pcall(sepgp_prices.GetOffspec, sepgp_prices, it.link, sepgp_progress)
       if ok and price then
-        f.cost:SetText("Mainspec " .. price .. " GP   -   Offspec " .. math.floor(price * (sepgp_discount or 0.25)) .. " GP")
+        f.cost:SetText("Mainspec " .. price .. " GP   -   Offspec " .. osPrice .. " GP")
       else
         f.cost:SetText("No GP price known for this item.")
       end
@@ -1197,7 +1197,7 @@ local function Share()
   if IsGuildLeader() then sepgp:shareSettings(true) end
 end
 
-UI.Page{ key = "officer", label = "Officer", tip = "EP awards, decay and the guild's EPGP rules. Click to unfold the officer tools (Decay log, Addon check, Accounts), click again to fold them away. Officers only.", admin = true,
+UI.Page{ key = "officer", label = "Officer", tip = "EP awards, decay and the guild's EPGP rules. Click to unfold the officer tools (Quick EP / GP, Decay log, Addon check, Accounts), click again to fold them away. Officers only.", admin = true,
   build = function(f)
     local cw = math.floor((PW - 8) / 2)
     -- awards
@@ -1356,26 +1356,13 @@ UI.Page{ key = "officer", label = "Officer", tip = "EP awards, decay and the gui
     f.minep.onEnter = SetMin
     UI.Tip(ms, "Minimum EP", "Members below it are listed after everyone above it in standings and bids. 0 = no minimum.")
 
-    UI.Label(r, "Offspec price", 12, -134)
-    f.osp = UI.Slider(r, cw - 170)
-    f.osp:SetPoint("TOPLEFT", r, "TOPLEFT", 110, -132)
-    f.osp:SetMinMaxValues(0, 1)
-    f.osp:SetValueStep(0.05)
-    f.ospText = UI.Text(r, 11)
-    f.ospText:SetPoint("TOPRIGHT", r, "TOPRIGHT", -12, -134)
-    f.osp.onValue = function(v)
-      sepgp_discount = math.floor(v * 20 + 0.5) / 20
-      f.ospText:SetText(math.floor(sepgp_discount * 100 + 0.5) .. "%")
-    end
-    f.osp:SetScript("OnMouseUp", function() Call(Share) end)
-
-    UI.Label(r, "Decay per run", 12, -168)
+    UI.Label(r, "Decay per run", 12, -134)
     f.decay = UI.Slider(r, cw - 170)
-    f.decay:SetPoint("TOPLEFT", r, "TOPLEFT", 110, -166)
+    f.decay:SetPoint("TOPLEFT", r, "TOPLEFT", 110, -132)
     f.decay:SetMinMaxValues(0.01, 0.5)
     f.decay:SetValueStep(0.01)
     f.decayText = UI.Text(r, 11)
-    f.decayText:SetPoint("TOPRIGHT", r, "TOPRIGHT", -12, -168)
+    f.decayText:SetPoint("TOPRIGHT", r, "TOPRIGHT", -12, -134)
     f.decay.onValue = function(v)
       v = math.floor(v * 100 + 0.5) / 100
       sepgp_decay = 1 - v
@@ -1383,8 +1370,37 @@ UI.Page{ key = "officer", label = "Officer", tip = "EP awards, decay and the gui
     end
     f.decay:SetScript("OnMouseUp", function() Call(Share) end)
 
+    -- offspec price, one per tier (guild leader, 29 Oct 2026: MC 25%, BWL 40%, ...)
+    local oh = UI.Text(r, 12, C.gold)
+    oh:SetPoint("TOPLEFT", r, "TOPLEFT", 12, -170)
+    oh:SetText("Offspec price per tier")
+    f.osp = {}
+    local tiers = UI.Prices.TIERS
+    for i = 1, table.getn(tiers) do
+      local tier, y = tiers[i].key, -194 - (i - 1) * 26
+      local lab = UI.Text(r, 11)
+      lab:SetPoint("TOPLEFT", r, "TOPLEFT", 12, y)
+      lab:SetWidth(150)
+      lab:SetJustifyH("LEFT")
+      lab:SetText(tiers[i].label)
+      local s = UI.Slider(r, cw - 230)
+      s:SetPoint("TOPLEFT", r, "TOPLEFT", 168, y + 2)
+      s:SetMinMaxValues(0, 1)
+      s:SetValueStep(0.05)
+      s.tier = tier
+      s.text = UI.Text(r, 11)
+      s.text:SetPoint("TOPRIGHT", r, "TOPRIGHT", -12, y)
+      s.onValue = function(v)
+        UI.Prices.SetRate(tier, math.floor(v * 20 + 0.5) / 20)
+        s.text:SetText(math.floor(UI.Prices.Rate(tier) * 100 + 0.5) .. "%")
+      end
+      s:SetScript("OnMouseUp", function() Call(Share) end)
+      UI.Tip(s, "Offspec price - " .. tiers[i].label, "Offspec bids on this tier's items cost this share of the mainspec GP.")
+      f.osp[i] = s
+    end
+
     f.rulesNote = UI.Text(r, 10, C.dim)
-    f.rulesNote:SetPoint("TOPLEFT", r, "TOPLEFT", 12, -204)
+    f.rulesNote:SetPoint("TOPLEFT", r, "TOPLEFT", 12, -194 - table.getn(tiers) * 26 - 8)
     f.rulesNote:SetWidth(cw - 24)
     f.rulesNote:SetJustifyH("LEFT")
   end,
@@ -1393,8 +1409,11 @@ UI.Page{ key = "officer", label = "Officer", tip = "EP awards, decay and the gui
     f.tier.Refresh()
     f.chan.Refresh()
     if not f.minep.typing then f.minep:SetText(tostring(sepgp_minep or 0)) end
-    UI.SliderSet(f.osp, sepgp_discount or 0.25)
-    f.ospText:SetText(math.floor((sepgp_discount or 0.25) * 100 + 0.5) .. "%")
+    for i = 1, table.getn(f.osp) do
+      local s = f.osp[i]
+      UI.SliderSet(s, UI.Prices.Rate(s.tier))
+      s.text:SetText(math.floor(UI.Prices.Rate(s.tier) * 100 + 0.5) .. "%")
+    end
     UI.SliderSet(f.decay, 1 - (sepgp_decay or 0.9))
     f.decayText:SetText(math.floor((1 - (sepgp_decay or 0.9)) * 100 + 0.5) .. "%")
     UI.SliderSet(f.altPct, sepgp_altpercent or 1)

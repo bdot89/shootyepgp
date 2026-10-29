@@ -245,6 +245,173 @@ local prices = {
 [30017] = {9999,"T2"}; --Onyxian Drake
 
 
+----------------------
+--- Blackwing Lair ---
+----------------------
+
+--Razorgore the Untamed
+[16926] = {175,"T2"}; --Bindings of Transcendence
+[16918] = {175,"T2"}; --Netherwind Bindings
+[16934] = {175,"T2"}; --Nemesis Bracers
+[16911] = {175,"T2"}; --Bloodfang Bracers
+[16904] = {175,"T2"}; --Stormrage Bracers
+[16935] = {175,"T2"}; --Dragonstalker's Bracers
+[16943] = {175,"T2"}; --Bindings of Ten Storms
+[16951] = {175,"T2"}; --Judgement Bindings
+[16959] = {175,"T2"}; --Bracelets of Wrath
+[19336] = {200,"T2"}; --Arcane Infused Gem
+[19337] = {200,"T2"}; --The Black Book
+[19370] = {125,"T2"}; --Mantle of the Blackwing Cabal
+[19369] = {125,"T2"}; --Gloves of Rapid Evolution
+[19335] = {150,"T2"}; --Spineshatter
+[19334] = {300,"T2"}; --The Untamed Blade
+
+--Vaelastrasz the Corrupt
+[16925] = {175,"T2"}; --Belt of Transcendence
+[16818] = {175,"T2"}; --Netherwind Belt
+[16933] = {175,"T2"}; --Nemesis Belt
+[16910] = {175,"T2"}; --Bloodfang Belt
+[16903] = {175,"T2"}; --Stormrage Belt
+[16936] = {175,"T2"}; --Dragonstalker's Belt
+[16944] = {175,"T2"}; --Belt of Ten Storms
+[16952] = {175,"T2"}; --Judgement Belt
+[16960] = {175,"T2"}; --Waistband of Wrath
+[19339] = {200,"T2"}; --Mind Quickening Gem
+[19340] = {200,"T2"}; --Rune of Metamorphosis
+[19372] = {225,"T2"}; --Helm of Endless Rage
+[19371] = {75,"T2"}; --Pendant of the Fallen Dragon
+[19348] = {150,"T2"}; --Red Dragonscale Protector
+[19346] = {150,"T2"}; --Dragonfang Blade
+
+--Broodlord Lashlayer
+[16919] = {175,"T2"}; --Boots of Transcendence
+[16912] = {175,"T2"}; --Netherwind Boots
+[16927] = {175,"T2"}; --Nemesis Boots
+[16906] = {175,"T2"}; --Bloodfang Boots
+[16898] = {175,"T2"}; --Stormrage Boots
+[16941] = {175,"T2"}; --Dragonstalker's Greaves
+[16949] = {175,"T2"}; --Greaves of Ten Storms
+[16957] = {175,"T2"}; --Judgement Sabatons
+[16965] = {175,"T2"}; --Sabatons of Wrath
+[19341] = {200,"T2"}; --Lifegiving Gem
+[19342] = {200,"T2"}; --Venomous Totem
+[19373] = {125,"T2"}; --Black Brood Pauldrons
+[19374] = {125,"T2"}; --Bracers of Arcane Accuracy
+[19350] = {50,"T2"}; --Heartstriker
+[19351] = {150,"T2"}; --Maladath, Runed Blade of the Black Flight
+
+--Firemaw
+[16920] = {175,"T2"}; --Handguards of Transcendence
+[16913] = {175,"T2"}; --Netherwind Gloves
+[16928] = {175,"T2"}; --Nemesis Gloves
+[16907] = {175,"T2"}; --Bloodfang Gloves
+[16899] = {175,"T2"}; --Stormrage Handguards
+[16940] = {175,"T2"}; --Dragonstalker's Gauntlets
+[16948] = {175,"T2"}; --Gauntlets of Ten Storms
+[16964] = {175,"T2"}; --Gauntlets of Wrath
+[19344] = {200,"T2"}; --Natural Alignment Crystal
+[19394] = {225,"T2"}; --Drake Talon Pauldrons
+[19398] = {75,"T2"}; --Cloak of Firemaw
+[19399] = {25,"T2"}; --Black Ash Robe
+[19400] = {75,"T2"}; --Firemaw's Clutch
+[19396] = {75,"T2"}; --Taut Dragonhide Belt
+[19401] = {125,"T2"}; --Primalist's Linked Legguards
+[19402] = {225,"T2"}; --Legguards of the Fallen Crusader
+[19365] = {150,"T2"}; --Claw of the Black Drake
+[19353] = {300,"T2"}; --Drake Talon Cleaver
+[19355] = {300,"T2"}; --Shadow Wing Focus Staff
+[19397] = {125,"T2"}; --Ring of Blackrock
+[19395] = {300,"T2"}; --Rejuvenating Gem
+
+--Ezzel Darkbrewer
+[33077] = {25,"T2"}; --Apron of Fuming Protection
+[33074] = {125,"T2"}; --Taut Dragonhide Boots
+[33073] = {150,"T2"}; --Philosopher's Barrier
+[33080] = {25,"T2"}; --Wingbone Vambraces
+[33075] = {300,"T2"}; --Staff of Cleansing Vapors
+[33079] = {150,"T2"}; --Philosopher's Stone Replica
+[33078] = {50,"T2"}; --Vials of Volatile Acid
+[33076] = {50,"T2"}; --Ichorus
+[33081] = {125,"T2"}; --Flask of Petrified Gold
+[33090] = {50,"T2"}; --Totem of Distant Tremors
+[33097] = {50,"T2"}; --Idol of Acidity
+[33085] = {175,"T2"}; --Over-Tinkered Lens
+
+--Ebonroc
+[19345] = {200,"T2"}; --Aegis of Preservation
+[19407] = {125,"T2"}; --Ebony Flame Gloves
+[19405] = {125,"T2"}; --Malfurion's Blessed Bulwark
+[19368] = {50,"T2"}; --Dragonbreath Hand Cannon
+[19403] = {125,"T2"}; --Band of Forced Concentration
+[19406] = {350,"T2"}; --Drake Fang Talisman
+
+--Flamegor
+[19430] = {125,"T2"}; --Shroud of Pure Thought
+[19433] = {25,"T2"}; --Emberweave Leggings
+[19367] = {50,"T2"}; --Dragon's Touch
+[19357] = {300,"T2"}; --Herald of Woe
+[19432] = {125,"T2"}; --Circle of Applied Force
+[19431] = {300,"T2"}; --Styleen's Impeding Scarab
+
+--Chromaggus
+[16924] = {175,"T2"}; --Pauldrons of Transcendence
+[16917] = {175,"T2"}; --Netherwind Mantle
+[16932] = {175,"T2"}; --Nemesis Spaulders
+[16832] = {175,"T2"}; --Bloodfang Spaulders
+[16902] = {175,"T2"}; --Stormrage Pauldrons
+[16937] = {175,"T2"}; --Dragonstalker's Spaulders
+[16945] = {175,"T2"}; --Epaulets of Ten Storms
+[16953] = {175,"T2"}; --Judgement Spaulders
+[16961] = {175,"T2"}; --Pauldrons of Wrath
+[19389] = {125,"T2"}; --Taut Dragonhide Shoulderpads
+[19386] = {125,"T2"}; --Elementium Threaded Cloak
+[19390] = {125,"T2"}; --Taut Dragonhide Gloves
+[19388] = {125,"T2"}; --Angelista's Grasp
+[19393] = {125,"T2"}; --Primalist's Linked Waistguard
+[19392] = {125,"T2"}; --Girdle of the Fallen Crusader
+[19385] = {225,"T2"}; --Empowered Leggings
+[19391] = {75,"T2"}; --Shimmering Geta
+[19387] = {225,"T2"}; --Chromatic Boots
+[19361] = {300,"T2"}; --Ashjre'thul, Crossbow of Smiting
+[19349] = {150,"T2"}; --Elementium Reinforced Bulwark
+[19347] = {150,"T2"}; --Claw of Chromaggus
+[19352] = {149,"T2"}; --Chromatically Tempered Sword
+
+--Nefarian
+[16923] = {175,"T2"}; --Robes of Transcendence
+[16916] = {175,"T2"}; --Netherwind Robes
+[16931] = {175,"T2"}; --Nemesis Robes
+[16905] = {175,"T2"}; --Bloodfang Chestpiece
+[16897] = {175,"T2"}; --Stormrage Chestguard
+[16942] = {175,"T2"}; --Dragonstalker's Breastplate
+[16950] = {175,"T2"}; --Breastplate of Ten Storms
+[16958] = {175,"T2"}; --Judgement Breastplate
+[16966] = {175,"T2"}; --Breastplate of Wrath
+[19002] = {225,"T2"}; --Head of Nefarian (Horde)
+[19360] = {150,"T2"}; --Lok'amir il Romathis
+[19363] = {150,"T2"}; --Crul'shorukh, Edge of Chaos
+[19364] = {300,"T2"}; --Ashkandi, Greatsword of the Brotherhood
+[19356] = {300,"T2"}; --Staff of the Shadow Flame
+[19375] = {225,"T2"}; --Mish'undare, Circlet of the Mind Flayer
+[19377] = {225,"T2"}; --Prestor's Talisman of Connivery
+[19378] = {125,"T2"}; --Cloak of the Brood Lord
+[19380] = {125,"T2"}; --Therazane's Link
+[19381] = {175,"T2"}; --Boots of the Shadow Flame
+[19376] = {175,"T2"}; --Archimtiros' Ring of Reckoning
+[19382] = {225,"T2"}; --Pure Elementium Band
+[19379] = {300,"T2"}; --Neltharion's Tear
+
+--Trash Mobs
+[19439] = {25,"T2"}; --Interlaced Shadow Jerkin
+[19437] = {175,"T2"}; --Boots of Pure Thought
+[19438] = {125,"T2"}; --Ringo's Blizzard Boots
+[19434] = {75,"T2"}; --Band of Dark Dominion
+[19435] = {50,"T2"}; --Essence Gatherer
+[19362] = {150,"T2"}; --Doom's Edge
+[19354] = {300,"T2"}; --Draconic Avenger
+[19358] = {300,"T2"}; --Draconic Maul
+
+
 ---------------------------
 --- Temple of Ahn'Qiraj ---
 ---------------------------
@@ -886,7 +1053,21 @@ function sepgp_prices:GetPrice(item,progress)
       return
     end
   end
-  return price
+  return price, tier
+end
+
+-- Offspec price per tier (sepgp_discount_tier, set by the guild leader and shared
+-- with the guild); a tier without its own rate uses the old single sepgp_discount.
+function sepgp_prices:OffspecRate(tier)
+  local rate = type(sepgp_discount_tier) == "table" and tier and tonumber(sepgp_discount_tier[tier])
+  return rate or sepgp_discount or 0.25
+end
+
+-- offspec GP, mainspec GP, tier
+function sepgp_prices:GetOffspec(item,progress)
+  local price, tier = self:GetPrice(item,progress)
+  if not price then return end
+  return math.floor(price * self:OffspecRate(tier)), price, tier
 end
 
 -- GLOBALS: sepgp_saychannel,sepgp_groupbyclass,sepgp_groupbyarmor,sepgp_groupbyrole,sepgp_raidonly,sepgp_decay,sepgp_minep,sepgp_reservechannel,sepgp_main,sepgp_progress,sepgp_discount,sepgp_log,sepgp_dbver,sepgp_looted

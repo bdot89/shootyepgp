@@ -125,7 +125,9 @@ sepgp.defaultPrint = function() end
 local function Mod() return { Toggle = Rec("toggle"), Refresh = function() end, Export = Rec("export"), Import = Rec("import"),
   bidCountdown = Rec("countdown"), sendAttention = Rec("attention"), announceWinnerMS = Rec("winMS"), announceWinnerOS = Rec("winOS") } end
 sepgp_standings, sepgp_bids, sepgp_loot, sepgp_logs, sepgp_alts, sepgp_reserves = Mod(), Mod(), Mod(), Mod(), Mod(), Mod()
-sepgp_prices = { GetPrice = function(self, link, tier) return 175 end }
+sepgp_prices = { GetPrice = function(self, link, tier) return 175, "T2" end }
+function sepgp_prices:OffspecRate(tier) return (type(sepgp_discount_tier) == "table" and tier and sepgp_discount_tier[tier]) or sepgp_discount end
+function sepgp_prices:GetOffspec(item) local p, t = self:GetPrice(item) return math.floor(p * self:OffspecRate(t)), p, t end
 sepgp_minep, sepgp_decay, sepgp_discount, sepgp_progress, sepgp_saychannel = 300, 0.9, 0.25, "T1", "GUILD"
 sepgp_altspool, sepgp_altpercent, sepgp_main, sepgp_sound, sepgp_autobidwindow = true, 1, "Aldren", 1, 0
 sepgp_log = { { "Aug/20 19:45:41", "Awarding 125 GP to Corvan. (Previous: 400, New: 525)" }, { "Aug/21 20:00:00", "Giving 100 ep to all raidmembers" } }
@@ -142,7 +144,9 @@ function GetAddOnInfo(n) if n == "pfUI" then return n, "pfUI", "", nil, 1, "DISA
 ITEM_QUALITY_COLORS = { [4] = { hex = "|cffa335ee" } }
 
 -- ------------------------------------------------------------ load
-for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Accounts.lua", "ui/Decay.lua", "ui/Versions.lua", "ui/Minimap.lua" }) do dofile(f) end
+sepgp.gp_prices = { [16900] = { 175, "T2" }, [19402] = { 225, "T2" } }
+sepgp_price_edits = { [19402] = { gp = 225, by = "Aldren", at = 1 }, [16900] = { gp = 200, by = "Aldren", at = 2 } }
+for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Accounts.lua", "ui/Decay.lua", "loot_db.lua", "ui/Prices.lua", "ui/BidPopup.lua", "ui/QuickPoints.lua", "ui/Versions.lua", "ui/Minimap.lua" }) do dofile(f) end
 local UI = SEPGP_UI
 local function Dump() for i = 1, table.getn(Mock.printed) do print("chat: " .. Mock.printed[i]) end Mock.printed = {} end
 Mock.Fire("ADDON_LOADED", "shootyepgp")
@@ -235,8 +239,8 @@ UI.Select("officer")
 local of = UI.pages.officer.frame
 of.raidAmount:SetText("100")
 local n0 = table.getn(calls)
-of.osp.onValue(0.5)
-ok(sepgp_discount == 0.5, "offspec slider sets the price")
+of.osp[3].onValue(0.4)
+ok(sepgp_discount_tier and sepgp_discount_tier["T2"] == 0.4 and UI.Prices.Rate("T1") == 0.25, "offspec slider per tier (T2 40%, T1 still 25%)")
 UI.Refresh()
 for i = 1, table.getn(UI.order) do UI.Select(UI.order[i]) end
 UI.Select("bids")
@@ -885,6 +889,190 @@ do
   sepgp_bids:sendAttention()
   ok(said.attention, "attention ping kept")
   ok(type(sepgp_standings.Export) == "function" and type(sepgp_standings.Import) == "function", "export / import kept")
+end
+-- ---------------------------------------------------------------- prices, wish list, ignore list
+do
+  local PR = UI.Prices
+  ok(sepgp_price_edits[19402] == nil, "a saved price change prices.lua already has clears itself")
+  ok(sepgp.gp_prices[16900][1] == 200 and sepgp.gp_prices[16900][2] == "T2" and PR.filePrice[16900][1] == 175, "a saved price change is used at login")
+  local raids = sepgp_lootdb.raids
+  local keys = ""
+  for i = 1, table.getn(raids) do keys = keys .. raids[i].key .. " " end
+  ok(keys == "MC ONY BWL AQ40 NAXX KARA40 ", "every EP raid in the loot list (" .. keys .. ")")
+  ok(table.getn(raids[1].bosses[1].items) > 10 and sepgp_lootdb.items[16812][3] == "Gloves of Prophecy", "boss loot with names")
+  local r, b = PR.Find(19402)
+  ok(r and r.key == "BWL" and b, "an item knows its raid and boss")
+
+  admin = false
+  UI.Select("prices")
+  local f = UI.pages.prices.frame
+  ok(f and UI.current == "prices", "Prices topic opens for members")
+  ok(not f.tabs[4]:IsShown(), "members do not see the Changes tab")
+  -- pick Blackwing Lair, then Nefarian
+  this = f.lootView.raidButtons[3]
+  f.lootView.raidButtons[3].scripts.OnClick()
+  ok(f.raid == 3, "raid button picks the raid")
+  local nef
+  for i = 1, table.getn(raids[3].bosses) do if raids[3].bosses[i].name == "Nefarian" then nef = i end end
+  f.lootView.bosses.onClick({ id = nef })
+  local items = f.lootView.items
+  ok(items.lines[1]:IsShown() and items.lines[1].entry, "boss items listed")
+  local id = items.lines[1].entry.id
+  ok(items.lines[1].ms:GetText() == "175" and items.lines[1].os:GetText() == "70", "MS and OS GP shown (" .. tostring(items.lines[1].ms:GetText()) .. "/" .. tostring(items.lines[1].os:GetText()) .. ")")
+  this = items.lines[1]
+  items.lines[1].scripts.OnEnter()
+  -- right-click -> wish list
+  this, arg1 = items.lines[1], "RightButton"
+  items.lines[1].scripts.OnClick()
+  ok(PR.menu and PR.menu:IsShown() and PR.menu.buttons[1].text:GetText() == "Add to wish list" and not PR.menu.buttons[3]:IsShown(), "right-click menu: wish / ignore (no price for members)")
+  this = PR.menu.buttons[1]
+  PR.menu.buttons[1].scripts.OnClick()
+  ok(PR.State(id) == "wish" and sepgp_wish.wish[id], "item wishlisted")
+  UI.RefreshPage()
+  ok(items.lines[1].mark:IsShown() and items.lines[1].mark.texture == PR.WISH_ICON, "star shows on the row")
+  -- ignore another
+  local id2 = items.lines[2].entry.id
+  PR.SetState(id2, "ignore")
+  UI.RefreshPage()
+  ok(items.lines[2].mark.texture == PR.IGNORE_ICON, "ignored mark shows")
+  PR.SetState(id, "wish")
+  -- wish and ignored tabs
+  this = f.tabs[2]
+  f.tabs[2].scripts.OnClick()
+  ok(f.wishView:IsShown() and f.wishView.list.lines[1].entry.id == id and string.find(f.wishView.list.lines[1].where:GetText(), "BWL - Nefarian", 1, true), "wish list tab lists it with its boss")
+  this = f.tabs[3]
+  f.tabs[3].scripts.OnClick()
+  ok(f.ignoreView.list.lines[1].entry.id == id2, "ignored tab lists it")
+
+  -- bid pop-ups
+  local told = {}
+  local oldSend = SendChatMessage
+  SendChatMessage = function(msg, ch, lang, to) table.insert(told, { msg, ch, to }) end
+  sepgp.inRaid = function() return true end
+  local BP = UI.BidPopup
+  BP.OnCall(PR.Link(id2), "Corvan", 1, 1, nil)
+  ok(not (BP.frame and BP.frame:IsShown()), "an ignored item does not pop up")
+  local link = PR.Link(id)
+  BP.OnCall(link, "Corvan", 1, 1, nil)
+  ok(BP.frame:IsShown() and BP.frame.id == id, "bid pop-up comes up")
+  ok(BP.alert and BP.alert:IsShown(), "wish list item: big alert")
+  this = BP.frame.ms
+  BP.frame.ms.scripts.OnClick()
+  ok(told[1] and told[1][1] == "+" and told[1][2] == "WHISPER" and told[1][3] == "Corvan", "Mainspec whispers + to the loot master")
+  ok(not BP.frame:IsShown(), "pop-up closes after a bid")
+  local plain = 19402
+  BP.OnCall(PR.Link(plain), "Corvan", nil, 1, nil)
+  ok(BP.frame:IsShown() and BP.frame.ms.disabledLook and not BP.frame.os.disabledLook, "an offspec-only call offers offspec only")
+  this = BP.frame.os
+  BP.frame.os.scripts.OnClick()
+  ok(told[2] and told[2][1] == "-", "Offspec whispers -")
+  BP.OnCall(PR.Link(plain), "Corvan", 1, 1, nil)
+  this = BP.frame.ignore
+  BP.frame.ignore.scripts.OnClick()
+  ok(PR.State(plain) == "ignore" and not BP.frame:IsShown(), "ignore for good")
+  BP.OnCall(PR.Link(plain), "Corvan", 1, 1, nil)
+  ok(not BP.frame:IsShown(), "it never pops up again")
+  this = f.tabs[3]
+  f.tabs[3].scripts.OnClick()
+  local undoRow
+  for r = 1, 3 do if f.ignoreView.list.lines[r].entry and f.ignoreView.list.lines[r].entry.id == plain then undoRow = f.ignoreView.list.lines[r] end end
+  this = undoRow and undoRow.action
+  if undoRow then undoRow.action.scripts.OnClick() end
+  ok(PR.State(plain) == nil, "unignored from the Ignored tab")
+  sepgp_wish.popups = false
+  BP.OnCall(PR.Link(plain), "Corvan", 1, 1, nil)
+  ok(not BP.frame:IsShown(), "pop-ups can be switched off")
+  sepgp_wish.popups = true
+  -- through the real hook: bidPrint is in shootyepgp.lua; here the chat line's caller
+  SendChatMessage = oldSend
+
+  -- officers change a price
+  admin = true
+  UI.LayoutNav()
+  UI.Select("prices")
+  ok(f.tabs[4]:IsShown(), "officers see Changes")
+  this = f.tabs[1]
+  f.tabs[1].scripts.OnClick()
+  this, arg1 = items.lines[1], "LeftButton"
+  items.lines[1].scripts.OnClick()
+  ok(PR.editor and PR.editor:IsShown() and PR.editor.id == id, "officer left-click opens the price editor")
+  PR.editor.box:SetText("250")
+  this = PR.editor.save
+  PR.editor.save.scripts.OnClick()
+  ok(sepgp.gp_prices[id][1] == 250 and sepgp_price_edits[id].gp == 250 and sepgp_price_edits[id].by == "Aldren", "price change saved and used")
+  ok(PR.filePrice[id] == false, "the item was not in prices.lua (noted for the write-back)")
+  this = f.tabs[4]
+  f.tabs[4].scripts.OnClick()
+  ok(f.changesView:IsShown() and f.changesView.list.lines[1].entry, "Changes tab lists price changes")
+  local row
+  for r = 1, 3 do local l = f.changesView.list.lines[r] if l.entry and l.entry.id == id then row = l end end
+  this = row.action
+  row.action.scripts.OnClick()
+  UI.ConfirmYes()
+  ok(sepgp_price_edits[id] == nil and sepgp.gp_prices[id] == nil, "undo drops the change")
+  PR.SetPrice(16900, 175)
+  ok(sepgp_price_edits[16900] == nil and sepgp.gp_prices[16900][1] == 175, "setting the file price again drops the change")
+
+  -- sharing: every copy shows the same prices
+  local sent = {}
+  sepgp.addonMessage = function(self, m, ch) table.insert(sent, m) end
+  PR.SetPrice(19402, 240)
+  ok(sent[1] and string.find(sent[1], "^PRICE;19402:240:%d+;1$"), "a price change goes to the guild (" .. tostring(sent[1]) .. ")")
+  gl = true
+  sent = {}
+  PR.Share()
+  ok(sent[1] and string.find(sent[1], "T2=0.4", 1, true) and string.find(sent[1], "^OSTIER;"), "guild leader shares offspec per tier (" .. tostring(sent[1]) .. ")")
+  ok(sent[2] and string.find(sent[2], "19402:240", 1, true), "and every saved price change")
+  gl = false
+  PR.UndoPrice(19402)
+  ok(sent[3] and string.find(sent[3], "^PRICE;19402:%-1:"), "an undo goes to the guild too")
+  sent = {}
+  -- heard from others: Aldren is rank 1 (Officer), Corvan rank 2 (Core Raider); nobody here is rank 0
+  GUILD[2][3] = 0
+  PR.Receive("OSTIER", "T1=0.3,T2=0.45", "Corvan", "Guild Master")
+  ok(PR.Rate("T1") == 0.3 and PR.Rate("T2") == 0.45, "the guild leader's offspec prices are taken")
+  GUILD[2][3] = 2
+  PR.Receive("OSTIER", "T1=0.9", "Corvan", "Core Raider")
+  ok(PR.Rate("T1") == 0.3, "nobody else can set them")
+  PR.Receive("PRICE", "16900:333:5", "Dalia", "Raider")
+  ok(sepgp.gp_prices[16900][1] == 175, "price changes from non-officers are ignored")
+  PR.Receive("PRICE", "16900:333:5,19402:260:6", "Eldrin", "Officer")
+  ok(sepgp.gp_prices[16900][1] == 333 and sepgp_price_edits[16900].by == "Eldrin" and sepgp.gp_prices[19402][1] == 260, "an officer's price changes are taken")
+  PR.Receive("PRICE", "16900:-1:7", "Eldrin", "Officer")
+  ok(sepgp_price_edits[16900] == nil and sepgp.gp_prices[16900][1] == 175, "an officer's undo is taken")
+  ok(table.getn(sent) == 0, "heard changes are not sent on again")
+  PR.UndoPrice(19402, true)
+end
+-- ---------------------------------------------------------------- quick EP / GP
+do
+  admin = true
+  UI.LayoutNav()
+  UI.Select("quickpoints")
+  local f = UI.pages.quickpoints.frame
+  ok(f and UI.current == "quickpoints", "Quick EP / GP opens for officers")
+  local listed = {}
+  for i = 1, table.getn(f.list.view) do listed[f.list.view[i].data] = true end
+  ok(listed.Corvan and listed.Dalia and not listed.Brindle, "members listed, alts left out")
+  f.list.onClick({ data = "Corvan" })
+  f.list.onCheck({ data = "Dalia", ticked = true })
+  ok(f.tickInfo:GetText() == "2 members ticked", "ticks counted (" .. tostring(f.tickInfo:GetText()) .. ")")
+  f.amount:SetText("25")
+  local n0 = table.getn(calls)
+  this = f.epBtn
+  f.epBtn.scripts.OnClick()
+  ok(UI.confirmFrame:IsShown(), "asks first")
+  UI.ConfirmYes()
+  ok(calls[n0 + 1] == "ep:Corvan:25" and calls[n0 + 2] == "ep:Dalia:25", "EP given to every ticked member (" .. tostring(calls[n0 + 1]) .. ", " .. tostring(calls[n0 + 2]) .. ")")
+  ok(table.getn(UI.QuickPoints.Ticked(f)) == 0, "ticks cleared after giving")
+  f.list.onClick({ data = "Eldrin" })
+  f.amount:SetText("40")
+  this = f.gpBtn
+  f.gpBtn.scripts.OnClick()
+  UI.ConfirmYes()
+  ok(calls[table.getn(calls)] == "gp:Eldrin:40", "GP given")
+  admin = false
+  UI.LayoutNav()
+  ok(not UI.pages.quickpoints.nav:IsShown(), "hidden from members")
 end
 -- slash
 SlashCmdList.SEPGPUI("logs")

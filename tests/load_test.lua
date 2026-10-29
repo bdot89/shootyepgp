@@ -106,6 +106,16 @@ local okUndo, errUndo = pcall(DL.Undo, rec and rec.id)
 ok(okUndo, "undo runs " .. tostring(errUndo))
 ok(G[1][2] == "{820:410}" and G[2][2] == "tank {1500:900}" and G[3][2] == "{120:300}", "undo puts the notes back (" .. G[1][2] .. " / " .. G[2][2] .. ")")
 ok(rec and rec.undo and rec.undo.n == 3, "undo recorded")
+-- the REAL bid call line (sepgp:bidPrint) also brings up the bid pop-up (ui\BidPopup.lua)
+local okBid, errBid = pcall(sepgp.bidPrint, sepgp, "|cffa335ee|Hitem:19402:0:0:0|h[Legguards of the Fallen Crusader]|h|r", "Corvan", 1, 1, nil)
+ok(okBid and SEPGP_UI.BidPopup.frame and SEPGP_UI.BidPopup.frame:IsShown() and SEPGP_UI.BidPopup.frame.id == 19402, "real bid call opens the bid pop-up " .. tostring(errBid))
+ok(sepgp_lootdb and SEPGP_UI.pages.prices, "loot list and Prices topic loaded")
+-- the REAL addon message handler passes the guild leader's offspec prices per tier on
+local oldRoster = GetGuildRosterInfo
+GetGuildRosterInfo = function(i) local g = G[i] if not g then return nil end return g[1], i == 2 and "Guild Master" or "Raider", i == 2 and 0 or 3, 60, "Warrior", "", "", g[2], 1 end
+local okOs, errOs = pcall(sepgp.addonComms, sepgp, sepgp.VARS.prefix, "OSTIER;T1=0.25,T2=0.4;1", "GUILD", "Corvan")
+ok(okOs and sepgp_prices:OffspecRate("T2") == 0.4 and sepgp_prices:GetOffspec(19402) == 90, "real OSTIER message sets the T2 offspec price " .. tostring(errOs))
+GetGuildRosterInfo = oldRoster
 for i = 1, table.getn(Mock.printed) do
   if string.find(Mock.printed[i], "rror") or string.find(Mock.printed[i], "page ") then print("chat: " .. Mock.printed[i]) fails = fails + 1 end
 end

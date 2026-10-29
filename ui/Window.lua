@@ -367,7 +367,7 @@ function UI.RefreshSummary()
     s.min:SetText(minep > 0 and UI.Paint(C.dim, tostring(minep)) or UI.Paint(C.dim, "none"))
   end
   local decay = math.floor((1 - (sepgp_decay or 0.9)) * 100 + 0.5)
-  local osPct = math.floor((sepgp_discount or 0.25) * 100 + 0.5)
+  local osPct = math.floor((UI.Prices and UI.Prices.Rate(sepgp_progress) or sepgp_discount or 0.25) * 100 + 0.5)
   -- tier as the big value, decay and offspec price in the caption (they did not fit beside it)
   s.tier:SetText(tostring(sepgp_progress or "T1"))
   s.tierCaption:SetText(decay .. "% decay  -  offspec " .. osPct .. "%")
@@ -518,6 +518,7 @@ function UI.Signature()
   local hist = (UI.History and UI.History.version or 0) .. "/" .. (UI.AddonCheck and UI.AddonCheck.version or 0)
     .. "/" .. (UI.Accounts and UI.Accounts.version or 0) .. "/" .. (UI.Versions and UI.Versions.version or 0)
     .. "/" .. (UI.Decay and UI.Decay.version or 0) .. ((UI.Decay and UI.Decay.check) and "c" or "")
+    .. "/" .. (UI.Prices and UI.Prices.version or 0)
   return bids .. ":" .. item .. ":" .. res .. ":" .. loot .. ":" .. log .. ":" .. cd .. ":" .. bidcd .. ":" .. hist
 end
 
@@ -598,5 +599,5 @@ SlashCmdList["SEPGPUI"] = function(msg)
   msg = string.lower(msg or "")
   if msg == "" then UI.Toggle() return end
   if UI.pages[msg] then UI.Open(msg) return end
-  UI.Print("/epgp opens the window. /epgp <topic>: home, standings, bids, loot, reserves, alts, logs, strikes, tools, settings, officer, decay, addons, accounts")
+  UI.Print("/epgp opens the window. /epgp <topic>: home, standings, bids, loot, prices, reserves, alts, logs, strikes, tools, settings, officer, decay, addons, accounts")
 end

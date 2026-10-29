@@ -432,11 +432,11 @@ end
 
 function sepgp:AddDataToTooltip(tooltip,itemlink,itemstring,is_master)
 
-  local price
+  local price, price_tier
   if (itemstring) then
-    price = sepgp_prices:GetPrice(itemstring,sepgp_progress)
+    price, price_tier = sepgp_prices:GetPrice(itemstring,sepgp_progress)
   elseif (itemlink) then
-    price = sepgp_prices:GetPrice(itemlink,sepgp_progress)
+    price, price_tier = sepgp_prices:GetPrice(itemlink,sepgp_progress)
   end
   if not price then return end
   local line_limit, left1,right1
@@ -449,7 +449,7 @@ function sepgp:AddDataToTooltip(tooltip,itemlink,itemstring,is_master)
   end
 
   local ep,gp = (self:get_ep_v3(self._playerName) or 0), (self:get_gp_v3(self._playerName) or sepgp.VARS.basegp)
-  local off_price = math.floor(price*sepgp_discount)
+  local off_price = math.floor(price*sepgp_prices:OffspecRate(price_tier))
   local pr,new_pr,new_pr_off = ep/gp, ep/(gp+price), ep/(gp+off_price)
   local pr_delta = new_pr - pr
   local pr_delta_off = new_pr_off - pr
@@ -725,6 +725,11 @@ function sepgp:defaultPrint(msg)
 end
 
 function sepgp:bidPrint(link, masterlooter, need, greed, bid)
+  -- the new window's bid pop-up (ui\BidPopup.lua); the chat line below stays
+  if SEPGP_UI and SEPGP_UI.BidPopup then
+    local ok, err = pcall(SEPGP_UI.BidPopup.OnCall, link, masterlooter, need, greed, bid)
+    if not ok then self:debugPrint("bid pop-up: " .. tostring(err)) end
+  end
   -- Build each clickable link
   local mslink   = string.gsub(bidlink["ms"],   "$ML", masterlooter)
   local oslink   = string.gsub(bidlink["os"],   "$ML", masterlooter)
@@ -935,6 +940,9 @@ function sepgp:addonComms(prefix,message,channel,sender)
           self:defaultPrint(settings_notice)
         end
       end
+    -- per-tier offspec prices (guild leader) and price changes (officers): ui\Prices.lua
+    elseif who == "OSTIER" or who == "PRICE" then
+      if SEPGP_UI and SEPGP_UI.Prices then SEPGP_UI.Prices.Receive(who, what, sender, rank) end
     -- Handle bid start broadcast from master looter
     elseif who == "BIDSTART" then
       -- Only officers/supreme leaders who are NOT the ML should process this
@@ -1044,6 +1052,8 @@ function sepgp:shareSettings(force)
     self._lastSettingsShare = now
     local addonMsg = string.format("SETTINGS;%s:%s:%s:%s:%s:%s;1",sepgp_progress,sepgp_discount,sepgp_decay,sepgp_minep,tostring(sepgp_altspool),sepgp_altpercent)
     self:addonMessage(addonMsg,"GUILD")
+    -- the new window's per-tier offspec prices and officers' price changes (ui\Prices.lua)
+    if SEPGP_UI and SEPGP_UI.Prices then SEPGP_UI.Prices.Share() end
   end
 end
 
@@ -1852,7 +1862,7 @@ function sepgp:tradeLoot(playerState,targetState)
     if (itemLink) then
       local link_found, _, itemColor, itemString, itemName = string.find(itemLink, "^(|c%x+)|H(.+)|h(%[.+%])")
       if (link_found) then
-        local price = sepgp_prices:GetPrice(itemString,sepgp_progress)
+        local price, price_tier = sepgp_prices:GetPrice(itemString,sepgp_progress)
         -- Only skip items with NO price entry (untracked trash). A price of 0
         -- means a known item that just hasn't been priced yet (Gear Points seeds
         -- new items at 0) -- still open the window so it can be handed out/logged.
@@ -1985,7 +1995,7 @@ function sepgp:processLoot(player,itemLink,source)
     end
     local bind = self:itemBinding(itemString)
     if not (bind) then return end
-    local price = sepgp_prices:GetPrice(itemString,sepgp_progress)
+    local price, price_tier = sepgp_prices:GetPrice(itemString,sepgp_progress)
     -- Only skip items with NO price entry (untracked trash). A price of 0 means
     -- a known item that just hasn't been priced yet (Gear Points seeds new items
     -- at 0) -- still open the MS/OS window so it can be handed out/logged.
@@ -2002,7 +2012,7 @@ function sepgp:processLoot(player,itemLink,source)
     if not (class) then return end
     self._lastPlayerItem, self._lastPlayerItemTime, self._lastPlayerItemSource = player_item, now, source
     local player_color = C:Colorize(BC:GetHexColor(class),player)
-    local off_price = math.floor(price*sepgp_discount)
+    local off_price = math.floor(price*sepgp_prices:OffspecRate(price_tier))
     local quality = hexColorQuality[itemColor] or -1
     local timestamp = date("%b/%d %H:%M:%S")
     local data = {[self.loot_index.time]=timestamp,[self.loot_index.player]=player,[self.loot_index.player_c]=player_color,[self.loot_index.item]=itemLink,[self.loot_index.bind]=bind,[self.loot_index.price]=price,[self.loot_index.off_price]=off_price}

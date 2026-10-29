@@ -7,11 +7,11 @@
 ## X-Website: https://github.com/bdot89/shootyepgp
 ## X-Category: Guild
 ## X-Credits: shooty, Qcat(zhCN)
-## Version: 10.22.0
+## Version: 10.23.0
 ## X-Alpha: 
 ## OptionalDeps: Ace2
-## SavedVariables: sepgp_saychannel, sepgp_groupbyclass, sepgp_groupbyarmor, sepgp_groupbyrole, sepgp_raidonly, sepgp_dbver, sepgp_debug, sepgp_fubar, sepgp_sound, RaidStrikeDB, RaidStrikeResetTime, sepgp_ui, sepgp_history, sepgp_accounts
-## SavedVariablesPerCharacter: sepgp_main, sepgp_log, sepgp_looted, sepgp_decay, sepgp_minep, sepgp_reservechannel, sepgp_progress, sepgp_discount, sepgp_altspool, sepgp_altpercent, sepgp_autobidwindow, sepgp_profsync
+## SavedVariables: sepgp_saychannel, sepgp_groupbyclass, sepgp_groupbyarmor, sepgp_groupbyrole, sepgp_raidonly, sepgp_dbver, sepgp_debug, sepgp_fubar, sepgp_sound, RaidStrikeDB, RaidStrikeResetTime, sepgp_ui, sepgp_history, sepgp_accounts, sepgp_price_edits
+## SavedVariablesPerCharacter: sepgp_main, sepgp_log, sepgp_looted, sepgp_decay, sepgp_minep, sepgp_reservechannel, sepgp_progress, sepgp_discount, sepgp_altspool, sepgp_altpercent, sepgp_autobidwindow, sepgp_profsync, sepgp_wish, sepgp_discount_tier
 
 Libs\AceLibrary\AceLibrary.lua
 Libs\AceOO-2.0\AceOO-2.0.lua
@@ -35,6 +35,7 @@ localization.lua
 shootyepgp.lua
 migrations.lua
 prices.lua
+loot_db.lua
 legacy.lua
 matrix.lua
 raidstrike.lua
@@ -51,5 +52,8 @@ ui\RaidsPractice.lua
 ui\AddonCheck.lua
 ui\Accounts.lua
 ui\Decay.lua
+ui\Prices.lua
+ui\BidPopup.lua
+ui\QuickPoints.lua
 ui\Versions.lua
 ui\Minimap.lua
