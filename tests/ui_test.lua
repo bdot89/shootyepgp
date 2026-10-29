@@ -1171,6 +1171,15 @@ do
   ok(not BW.frame:IsShown(), "members never get the officer window")
   SendChatMessage = oldSend
 end
+-- topics: Prices right under Home, every topic has its icon
+ok(UI.order[1] == "home" and UI.order[2] == "prices", "Prices is the second topic (" .. tostring(UI.order[2]) .. ")")
+do
+  local missing = ""
+  for k, p in pairs(UI.pages) do
+    if not p.nav or not p.nav.icon or not p.nav.icon.texture or string.find(p.nav.icon.texture, "QuestionMark", 1, true) then missing = missing .. k .. " " end
+  end
+  ok(missing == "", "every topic has an icon (" .. missing .. ")")
+end
 -- slash
 SlashCmdList.SEPGPUI("logs")
 ok(UI.current == "logs", "/epgp logs opens Logs")

@@ -882,7 +882,7 @@ function PR.Draw(f)
   end
 end
 
-UI.Page{ key = "prices", label = "Prices", after = "loot",
+UI.Page{ key = "prices", label = "Prices", after = "home",
   tip = "What every raid item costs in GP, boss by boss. Right-click items for your wish list and ignore list.",
   badge = function() return nil end,
   build = Build,

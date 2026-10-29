@@ -152,7 +152,16 @@ end
 
 -- ------------------------------------------------------------------ window
 
-local function NavButton(nav, label)
+-- a small icon in front of each topic (guild leader, 29 Oct 2026); all are 1.12 game icons
+local NAV_ICONS = {
+  home = "INV_Misc_Rune_01", prices = "INV_Misc_Coin_01", standings = "INV_Scroll_03", raids = "INV_Misc_Head_Dragon_01",
+  bids = "INV_Hammer_05", loot = "INV_Misc_Bag_10", reserves = "Spell_Nature_TimeStop", alts = "Spell_Shadow_Charm",
+  logs = "INV_Misc_Book_09", strikes = "Ability_Warrior_Revenge", tools = "INV_Misc_Gear_01", settings = "Trade_Engineering",
+  officer = "INV_Misc_Key_03", quickpoints = "Spell_ChargePositive", decay = "Spell_Nature_Slow",
+  addons = "INV_Misc_Spyglass_02", accounts = "Spell_Holy_MindVision",
+}
+
+local function NavButton(nav, label, key)
   local b = CreateFrame("Button", nil, nav)
   b:SetHeight(24)
   b:SetPoint("LEFT", nav, "LEFT", 4, 0)
@@ -166,8 +175,14 @@ local function NavButton(nav, label)
   b.bg:SetAllPoints(b)
   b.bg:Hide()
   UI.Hover(b, 0.05)
+  b.icon = b:CreateTexture(nil, "ARTWORK")
+  b.icon:SetWidth(16)
+  b.icon:SetHeight(16)
+  b.icon:SetPoint("LEFT", b, "LEFT", 10, 0)
+  b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  b.icon:SetTexture("Interface\\Icons\\" .. (NAV_ICONS[key or ""] or "INV_Misc_QuestionMark"))
   b.text = UI.Text(b, 12, C.dim)
-  b.text:SetPoint("LEFT", b, "LEFT", 12, 0)
+  b.text:SetPoint("LEFT", b, "LEFT", 32, 0)
   b.text:SetText(label)
   b.badge = UI.Text(b, 10, C.gold)
   b.badge:SetPoint("RIGHT", b, "RIGHT", -8, 0)
@@ -241,14 +256,18 @@ function UI.Build()
 
   for i = 1, table.getn(UI.order) do
     local p = UI.pages[UI.order[i]]
-    p.nav = NavButton(nav, p.label)
+    p.nav = NavButton(nav, p.label, p.key)
     p.nav.key = p.key
     p.nav:SetScript("OnClick", function() UI.NavClick(this.key) end)
     UI.Tip(p.nav, p.label, p.tip)
     if p.parent then
       -- a topic folded inside another one: indented under it
+      p.nav.icon:ClearAllPoints()
+      p.nav.icon:SetPoint("LEFT", p.nav, "LEFT", 26, 0)
+      p.nav.icon:SetWidth(14)
+      p.nav.icon:SetHeight(14)
       p.nav.text:ClearAllPoints()
-      p.nav.text:SetPoint("LEFT", p.nav, "LEFT", 26, 0)
+      p.nav.text:SetPoint("LEFT", p.nav, "LEFT", 46, 0)
       UI.Font(p.nav.text, 11)
     end
   end
@@ -454,6 +473,7 @@ function UI.Select(key, quiet)
       q.nav.bar:Hide()
       q.nav.bg:Hide()
       q.nav.text:SetTextColor(C.dim[1], C.dim[2], C.dim[3])
+      q.nav.icon:SetAlpha(0.6)
     end
   end
   if not p.frame then
@@ -468,6 +488,7 @@ function UI.Select(key, quiet)
   p.nav.bar:Show()
   p.nav.bg:Show()
   p.nav.text:SetTextColor(1, 1, 1)
+  p.nav.icon:SetAlpha(1)
   UI.current = key
   UI.DB().page = key
   if p.parent and not UI.FoldOpen(p.parent) then
