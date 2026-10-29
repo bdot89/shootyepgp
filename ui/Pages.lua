@@ -624,12 +624,11 @@ local function BidRows(bids, offspec)
     local below = minep > 0 and ep < minep
     local m = UI.byName and UI.byName[name]
     local label = UI.ClassName(name, class)
-    if flag == "OSPRIO" then label = UI.Paint(C.red, "[PRIO] ") .. label end
     if flag == "XMOG" then label = UI.Paint(C.gold, "rolled " .. (b[8] and tostring(b[8]) or "-") .. "  ") .. label end
     -- the addon's order: at / above minimum EP first, then PR, then EP
     local order = (below and 1000000 or 0) - pr * 1000 - ep / 100000
     table.insert(rows, {
-      id = name, data = { name = name, pr = pr, offspec = offspec, prio = (flag == "OSPRIO") },
+      id = name, data = { name = name, pr = pr, offspec = offspec },
       cells = { label, m and m.rank or "", below and UI.Paint(C.red, UI.Fmt(ep)) or UI.Fmt(ep), UI.Fmt(gp),
                 below and UI.Paint(C.red, UI.FmtPR(pr)) or UI.Paint(C.gold, UI.FmtPR(pr)), main ~= "" and ("alt of " .. main) or "" },
       sort = { order = order, roll = tonumber(b[8]) or -1, name = name, rank = m and m.rankIndex or 99, ep = ep, gp = gp, pr = pr, main = main, tie = name },
@@ -680,7 +679,7 @@ UI.Page{ key = "bids", label = "Bids", tip = "The item up for bids and everyone 
       local d = r.data
       UI.Confirm(string.format("Announce %s as the %s winner (%.3f PR)?", d.name, d.offspec and "offspec" or "mainspec", d.pr), function()
         Call(function()
-          if d.offspec then sepgp_bids:announceWinnerOS((d.prio and "[PRIO] " or "") .. d.name, d.pr)
+          if d.offspec then sepgp_bids:announceWinnerOS(d.name, d.pr)
           else sepgp_bids:announceWinnerMS(d.name, d.pr) end
         end)
       end)

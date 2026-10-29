@@ -26,7 +26,7 @@ local SECTIONS = {
 local SAMPLE = {
   item = "|cffff8000|Hitem:19019:0:0:0|h[Thunderfury, Blessed Blade of the Windseeker]|h|r",
   bids_main = { { "Testwarrior", "Warrior", 2400, 600, 4.0, "", "" }, { "Testrogue", "Rogue", 1800, 600, 3.0, "", "" } },
-  bids_off = { { "Testpaladin", "Paladin", 2000, 800, 2.5, "", "OSPRIO" }, { "Testhunter", "Hunter", 900, 450, 2.0, "Testmain", "" } },
+  bids_off = { { "Testpaladin", "Paladin", 2000, 800, 2.5, "", "" }, { "Testhunter", "Hunter", 900, 450, 2.0, "Testmain", "" } },
   bids_xmog = { { "Testmage", "Mage", 1200, 400, 3.0, "", "XMOG", 41 }, { "Testpriest", "Priest", 800, 400, 2.0, "", "XMOG", 63 } },
 }
 
@@ -152,7 +152,6 @@ function BW.Draw()
       if b then
         Place(ln.name, d, "LEFT", 16, y)
         local label = UI.ClassName(b[1], b[2])
-        if b[7] == "OSPRIO" then label = UI.Paint(C.red, "[PRIO] ") .. label end
         if b[6] and b[6] ~= "" then label = label .. UI.Paint(C.dim, " (" .. b[6] .. ")") end
         ln.name:SetText(label)
         if sec.roll then

@@ -586,7 +586,7 @@ function sepgp:SetItemRef(link, name, button)
     elseif bid == "2" then
       bid = "-"
     elseif bid == "3" then
-      bid = "OSPRIO"
+      bid = "-" -- old [PRIO OFFSPEC] links still in chat: a plain offspec bid
     else
       bid = nil
     end
@@ -636,7 +636,7 @@ function sepgp:LootFrameItem_OnClick(button,data)
     local itemLink = GetLootSlotLink(slot)
     if (itemLink) then
       if button == "LeftButton" then
-        self:widestAudience(string.format(L["Whisper %s a '+' for MS / '-' for OS / 'OSPRIO' for full price OS with prio for the item: %s"],sepgp._playerName,itemLink))
+        self:widestAudience(string.format(L["Whisper %s a + or - for %s (mainspec or offspec)"],sepgp._playerName,itemLink))
       elseif button == "RightButton" then
         self:widestAudience(string.format(L["Whisper %s a - for %s (offspec)"],sepgp._playerName,itemLink))
       elseif button == "MiddleButton" then
@@ -670,7 +670,7 @@ function sepgp:ContainerFrameItemButton_OnClick(button,ignoreModifiers)
           return self.hooks["ContainerFrameItemButton_OnClick"](button,ignoreModifiers)
         end
         if button == "LeftButton" then
-          self:widestAudience(string.format(L["Whisper %s a '+' for MS / '-' for OS / 'OSPRIO' for full price OS with prio for the item: %s"],sepgp._playerName,itemLink))
+          self:widestAudience(string.format(L["Whisper %s a + or - for %s (mainspec or offspec)"],sepgp._playerName,itemLink))
           return
         elseif button == "RightButton" then
           self:widestAudience(string.format(L["Whisper %s a - for %s (offspec)"],sepgp._playerName,itemLink))
@@ -734,10 +734,9 @@ function sepgp:bidPrint(link, masterlooter, need, greed, bid)
   -- Build each clickable link
   local mslink   = string.gsub(bidlink["ms"],   "$ML", masterlooter)
   local oslink   = string.gsub(bidlink["os"],   "$ML", masterlooter)
-  local priooslink = string.gsub(bidlink["prioos"], "$ML", masterlooter)
-
-  -- Start with a string that has placeholders for all three
+  -- Start with a string that has placeholders for both (prio offspec removed, 29 Oct 2026)
   local msg = string.format(L["Click $MS or $PRIOOS or $OS for %s"], link)
+  msg = string.gsub(msg, "%$PRIOOS or ", "")
   math.randomseed(GetTime() * 1000)
  
   local randomSound = math.random(1, 29)
@@ -750,17 +749,15 @@ function sepgp:bidPrint(link, masterlooter, need, greed, bid)
 
   -- Decide which placeholders to keep/remove based on need/greed/bid
   if (need and greed) or bid then
-    -- Keep all three
+    -- Keep both
     msg = string.gsub(msg, "$MS", mslink)
-    msg = string.gsub(msg, "$PRIOOS", priooslink)
     msg = string.gsub(msg, "$OS", oslink)
   elseif (need) then
-    -- Only show MS, remove the others
+    -- Only show MS
     msg = string.gsub(msg, "$MS", mslink)
-    msg = string.gsub(msg, " or $PRIOOS or $OS", "")
+    msg = string.gsub(msg, " or $OS", "")
   elseif (greed) then
-    -- Only show OS and PRIOOS, remove MS
-    msg = string.gsub(msg, "$PRIOOS", priooslink)
+    -- Only show OS
     msg = string.gsub(msg, "$OS", oslink)
     msg = string.gsub(msg, "$MS or ", "")
   end
@@ -1014,7 +1011,7 @@ function sepgp:addonComms(prefix,message,channel,sender)
               end
               if not exists then
                 local flag = ""
-                if bidType == "OSPRIO" then flag = "OSPRIO" end
+                -- (an older loot master's OSPRIO bid is shown as a plain offspec bid)
                 table.insert(sepgp.bids_off, {name, class, ep, gp, pr, main_name or "", flag})
               end
             end
@@ -1676,7 +1673,7 @@ end
 local lootBid = {}
 lootBid.ms = {"(%+)",".+(%+).*",".*(%+).+",".*(%+).*","(ms)","(need)"}
 lootBid.os = {"(%-)",".+(%-).*",".*(%-).+",".*(%-).*","(os)","(greed)"}
-lootBid.msos = {".*[oO][sS][pP][rR][iI][oO].*"}
+lootBid.msos = {} -- prio offspec removed (29 Oct 2026): "osprio" now counts as a plain offspec bid
 lootBid.xmog = {"tmog","xmog","transmog"} -- plain words, matched on the lower-cased whisper
 
 

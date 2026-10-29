@@ -28,6 +28,7 @@ UI.Prices = PR
 local ROW_H = 22
 local QHEX = { [0] = "9d9d9d", [1] = "ffffff", [2] = "1eff00", [3] = "0070dd", [4] = "a335ee", [5] = "ff8000" }
 PR.WISH_ICON = "Interface\\Buttons\\UI-CheckBox-Check"                -- tick (1.12 has no single raid-star file)
+PR.XMOG_ICON = "Interface\\Icons\\INV_Shirt_White_01"                  -- a shirt: wanted for its looks
 PR.IGNORE_ICON = "Interface\\Buttons\\UI-GroupLoot-Pass-Up"           -- red cross
 
 -- ------------------------------------------------------------------ data
@@ -36,6 +37,7 @@ function PR.DB()
   if type(sepgp_wish) ~= "table" then sepgp_wish = {} end
   local db = sepgp_wish
   if type(db.wish) ~= "table" then db.wish = {} end
+  if type(db.xmog) ~= "table" then db.xmog = {} end
   if type(db.ignore) ~= "table" then db.ignore = {} end
   if db.popups == nil then db.popups = true end
   return db
@@ -93,12 +95,14 @@ end
 function PR.State(id)
   local db = PR.DB()
   if db.wish[id] then return "wish" end
+  if db.xmog[id] then return "xmog" end
   if db.ignore[id] then return "ignore" end
 end
--- state = "wish", "ignore" or nil (neither); an item is never on both lists
+-- state = "wish", "xmog", "ignore" or nil (none); an item is on one list at most
 function PR.SetState(id, state)
   local db = PR.DB()
   db.wish[id] = (state == "wish") and true or nil
+  db.xmog[id] = (state == "xmog") and true or nil
   db.ignore[id] = (state == "ignore") and true or nil
   PR.version = PR.version + 1
 end
@@ -313,8 +317,9 @@ function PR.Tooltip(owner, id)
   end
   local st = PR.State(id)
   if st == "wish" then GameTooltip:AddLine("On your wish list", C.gold[1], C.gold[2], C.gold[3]) end
+  if st == "xmog" then GameTooltip:AddLine("On your transmog list: X-Mog roll", C.gold[1], C.gold[2], C.gold[3]) end
   if st == "ignore" then GameTooltip:AddLine("Ignored: no bid pop-up", C.red[1], C.red[2], C.red[3]) end
-  GameTooltip:AddLine(UI.IsAdmin() and "Right-click: wish list, ignore, change price" or "Right-click: wish list or ignore", C.dim[1], C.dim[2], C.dim[3])
+  GameTooltip:AddLine(UI.IsAdmin() and "Right-click: wish list, transmog, ignore, change price" or "Right-click: wish list, transmog list or ignore", C.dim[1], C.dim[2], C.dim[3])
   GameTooltip:Show()
 end
 
@@ -480,6 +485,9 @@ local function ItemList(parent, width, nRows, withWhere, actionLabel)
         if st == "wish" then
           line.mark:SetTexture(PR.WISH_ICON)
           line.mark:Show()
+        elseif st == "xmog" then
+          line.mark:SetTexture(PR.XMOG_ICON)
+          line.mark:Show()
         elseif st == "ignore" then
           line.mark:SetTexture(PR.IGNORE_ICON)
           line.mark:Show()
@@ -541,7 +549,7 @@ function PR.Menu(id, anchor)
     table.insert(UI.menus, menu)
     menu.title = UI.Text(menu, 11)
     menu.buttons = {}
-    for i = 1, 4 do menu.buttons[i] = MenuButton(i) end
+    for i = 1, 5 do menu.buttons[i] = MenuButton(i) end
   end
   UI.CloseMenus()
   local st = PR.State(id)
@@ -551,6 +559,11 @@ function PR.Menu(id, anchor)
   else
     table.insert(opts, { "Add to wish list", PR.WISH_ICON, function() PR.SetState(id, "wish") end })
   end
+  if st == "xmog" then
+    table.insert(opts, { "Remove from transmog list", PR.XMOG_ICON, function() PR.SetState(id, nil) end })
+  else
+    table.insert(opts, { "Add to transmog list", PR.XMOG_ICON, function() PR.SetState(id, "xmog") end })
+  end
   if st == "ignore" then
     table.insert(opts, { "Stop ignoring", PR.IGNORE_ICON, function() PR.SetState(id, nil) end })
   else
@@ -559,7 +572,7 @@ function PR.Menu(id, anchor)
   if UI.IsAdmin() then
     table.insert(opts, { "Change price...", "Interface\\Icons\\INV_Misc_Coin_01", function() PR.Editor(id) end })
   end
-  for i = 1, 4 do
+  for i = 1, 5 do
     local b, o = menu.buttons[i], opts[i]
     if o then
       b.text:SetText(o[1])
@@ -682,6 +695,7 @@ end
 local VIEWS = {
   { key = "loot", label = "Loot" },
   { key = "wish", label = "Wish list" },
+  { key = "xmog", label = "Transmog" },
   { key = "ignore", label = "Ignored" },
   { key = "changes", label = "Changes", admin = true },
 }
@@ -719,7 +733,7 @@ local function Build(f)
   local x = 0
   for i = 1, table.getn(VIEWS) do
     local v = VIEWS[i]
-    local b = UI.Button(f, v.label, 104, 22)
+    local b = UI.Button(f, v.label, 96, 22)
     b:SetPoint("TOPLEFT", f, "TOPLEFT", x, 0)
     b.key = v.key
     b:SetScript("OnClick", function()
@@ -727,7 +741,7 @@ local function Build(f)
       PR.Draw(f)
     end)
     f.tabs[i] = b
-    x = x + 108
+    x = x + 100
   end
   -- your bid pop-ups on / off
   f.popups = UI.Switch(f)
@@ -795,6 +809,8 @@ local function Build(f)
   end
   f.wishView = ListView("Drops from", "Remove", "Your wish list is empty. Right-click an item under Loot and pick \"Add to wish list\".")
   f.wishView.list.onAction = function(e) PR.SetState(e.id, nil) PR.Draw(f) end
+  f.xmogView = ListView("Drops from", "Remove", "Your transmog list is empty. Right-click an item under Loot and pick \"Add to transmog list\".")
+  f.xmogView.list.onAction = function(e) PR.SetState(e.id, nil) PR.Draw(f) end
   f.ignoreView = ListView("Drops from", "Undo", "You ignore nothing. Right-click an item under Loot, or press \"Ignore this item for good\" on a bid pop-up.")
   f.ignoreView.list.onAction = function(e) PR.SetState(e.id, nil) PR.Draw(f) end
   f.changesView = ListView("Change", "Undo", "No price changes. Right-click an item under Loot and pick \"Change price...\".")
@@ -816,11 +832,12 @@ function PR.Draw(f)
   local admin = UI.IsAdmin()
   if f.view == "changes" and not admin then f.view = "loot" end
   local db = PR.DB()
-  local nWish, nIgnore, nEdits = Count(db.wish), Count(db.ignore), Count(PR.Edits())
+  local nWish, nXmog, nIgnore, nEdits = Count(db.wish), Count(db.xmog), Count(db.ignore), Count(PR.Edits())
   for i = 1, table.getn(VIEWS) do
     local v, b = VIEWS[i], f.tabs[i]
     local label = v.label
     if v.key == "wish" and nWish > 0 then label = label .. "  " .. UI.Paint(C.gold, nWish) end
+    if v.key == "xmog" and nXmog > 0 then label = label .. "  " .. UI.Paint(C.gold, nXmog) end
     if v.key == "ignore" and nIgnore > 0 then label = label .. "  " .. UI.Paint(C.gold, nIgnore) end
     if v.key == "changes" and nEdits > 0 then label = label .. "  " .. UI.Paint(C.gold, nEdits) end
     b:SetText(label)
@@ -830,12 +847,17 @@ function PR.Draw(f)
   f.popups.Set(db.popups and true or false)
   f.lootView:Hide()
   f.wishView:Hide()
+  f.xmogView:Hide()
   f.ignoreView:Hide()
   f.changesView:Hide()
   if f.view == "wish" then
     f.wishView:Show()
     f.wishView.info:SetText("You get a big alert and a bid pop-up when one of these comes up for bids.")
     f.wishView.list:SetItems(Entries(db.wish), true)
+  elseif f.view == "xmog" then
+    f.xmogView:Show()
+    f.xmogView.info:SetText("Items you want for their looks (or a mount, a bag): the bid pop-up says X-Mog Roll and lights up the roll button.")
+    f.xmogView.list:SetItems(Entries(db.xmog), true)
   elseif f.view == "ignore" then
     f.ignoreView:Show()
     f.ignoreView.info:SetText("No bid pop-up for these. You can still bid on them in raid chat.")
@@ -877,8 +899,8 @@ function PR.Draw(f)
     else
       lv.items:SetItems(items, true)
     end
-    lv.hint:SetText(admin and "Hover: tooltip and GP.  Right-click: wish list / ignore.  Left-click: change the price.  Shift-click: link in chat."
-      or "Hover: tooltip and GP.  Right-click: wish list / ignore.  Shift-click: link in chat.")
+    lv.hint:SetText(admin and "Hover: tooltip and GP.  Right-click: wish / transmog / ignore.  Left-click: change the price.  Shift-click: link in chat."
+      or "Hover: tooltip and GP.  Right-click: wish / transmog / ignore.  Shift-click: link in chat.")
   end
 end
 

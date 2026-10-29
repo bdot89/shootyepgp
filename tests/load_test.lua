@@ -109,6 +109,13 @@ ok(rec and rec.undo and rec.undo.n == 3, "undo recorded")
 -- the REAL bid call line (sepgp:bidPrint) also brings up the bid pop-up (ui\BidPopup.lua)
 local okBid, errBid = pcall(sepgp.bidPrint, sepgp, "|cffa335ee|Hitem:19402:0:0:0|h[Legguards of the Fallen Crusader]|h|r", "Corvan", 1, 1, nil)
 ok(okBid and SEPGP_UI.BidPopup.frame and SEPGP_UI.BidPopup.frame:IsShown() and SEPGP_UI.BidPopup.frame.id == 19402, "real bid call opens the bid pop-up " .. tostring(errBid))
+local chatLine = ""
+local oldAdd = DEFAULT_CHAT_FRAME.AddMessage
+DEFAULT_CHAT_FRAME.AddMessage = function(self, m) chatLine = chatLine .. tostring(m) end
+SELECTED_CHAT_FRAME = DEFAULT_CHAT_FRAME
+pcall(sepgp.bidPrint, sepgp, "|cffa335ee|Hitem:19402:0:0:0|h[Legguards of the Fallen Crusader]|h|r", "Corvan", 1, 1, nil)
+DEFAULT_CHAT_FRAME.AddMessage = oldAdd
+ok(string.find(chatLine, "MAINSPEC", 1, true) and string.find(chatLine, "OFFSPEC", 1, true) and not string.find(chatLine, "PRIO", 1, true), "bid call line offers mainspec and offspec only: " .. chatLine)
 ok(sepgp_lootdb and SEPGP_UI.pages.prices, "loot list and Prices topic loaded")
 -- the REAL addon message handler passes the guild leader's offspec prices per tier on
 local oldRoster = GetGuildRosterInfo

@@ -252,7 +252,7 @@ ok(calls[table.getn(calls)] == "winMS:Corvan:1.666", "bid click announces winner
 this, arg1 = bids.os.lines[1], "LeftButton"
 bids.os.lines[1].scripts.OnClick()
 UI.ConfirmYes()
-ok(calls[table.getn(calls)] == "winOS:[PRIO] Brindle:2", "offspec prio winner")
+ok(calls[table.getn(calls)] == "winOS:Brindle:2", "offspec winner (no prio offspec any more)")
 
 -- lift low EP: Dalia has 120 (minimum 300); Fennick/Brindle have no EP and stay
 local low = UI.LowEP()
@@ -913,7 +913,7 @@ do
   UI.Select("prices")
   local f = UI.pages.prices.frame
   ok(f and UI.current == "prices", "Prices topic opens for members")
-  ok(not f.tabs[4]:IsShown(), "members do not see the Changes tab")
+  ok(not f.tabs[5]:IsShown(), "members do not see the Changes tab")
   -- pick Blackwing Lair, then Nefarian
   this = f.lootView.raidButtons[3]
   f.lootView.raidButtons[3].scripts.OnClick()
@@ -930,7 +930,7 @@ do
   -- right-click -> wish list
   this, arg1 = items.lines[1], "RightButton"
   items.lines[1].scripts.OnClick()
-  ok(PR.menu and PR.menu:IsShown() and PR.menu.buttons[1].text:GetText() == "Add to wish list" and not PR.menu.buttons[3]:IsShown(), "right-click menu: wish / ignore (no price for members)")
+  ok(PR.menu and PR.menu:IsShown() and PR.menu.buttons[1].text:GetText() == "Add to wish list" and not PR.menu.buttons[4]:IsShown(), "right-click menu: wish / ignore (no price for members)")
   this = PR.menu.buttons[1]
   PR.menu.buttons[1].scripts.OnClick()
   ok(PR.State(id) == "wish" and sepgp_wish.wish[id], "item wishlisted")
@@ -946,8 +946,8 @@ do
   this = f.tabs[2]
   f.tabs[2].scripts.OnClick()
   ok(f.wishView:IsShown() and f.wishView.list.lines[1].entry.id == id and string.find(f.wishView.list.lines[1].where:GetText(), "BWL - Nefarian", 1, true), "wish list tab lists it with its boss")
-  this = f.tabs[3]
-  f.tabs[3].scripts.OnClick()
+  this = f.tabs[4]
+  f.tabs[4].scripts.OnClick()
   ok(f.ignoreView.list.lines[1].entry.id == id2, "ignored tab lists it")
 
   -- bid pop-ups
@@ -978,8 +978,8 @@ do
   ok(PR.State(plain) == "ignore" and not BP.frame:IsShown(), "ignore for good")
   BP.OnCall(PR.Link(plain), "Corvan", 1, 1, nil)
   ok(not BP.frame:IsShown(), "it never pops up again")
-  this = f.tabs[3]
-  f.tabs[3].scripts.OnClick()
+  this = f.tabs[4]
+  f.tabs[4].scripts.OnClick()
   local undoRow
   for r = 1, 3 do if f.ignoreView.list.lines[r].entry and f.ignoreView.list.lines[r].entry.id == plain then undoRow = f.ignoreView.list.lines[r] end end
   this = undoRow and undoRow.action
@@ -996,7 +996,7 @@ do
   admin = true
   UI.LayoutNav()
   UI.Select("prices")
-  ok(f.tabs[4]:IsShown(), "officers see Changes")
+  ok(f.tabs[5]:IsShown(), "officers see Changes")
   this = f.tabs[1]
   f.tabs[1].scripts.OnClick()
   this, arg1 = items.lines[1], "LeftButton"
@@ -1007,8 +1007,8 @@ do
   PR.editor.save.scripts.OnClick()
   ok(sepgp.gp_prices[id][1] == 250 and sepgp_price_edits[id].gp == 250 and sepgp_price_edits[id].by == "Aldren", "price change saved and used")
   ok(PR.filePrice[id] == false, "the item was not in prices.lua (noted for the write-back)")
-  this = f.tabs[4]
-  f.tabs[4].scripts.OnClick()
+  this = f.tabs[5]
+  f.tabs[5].scripts.OnClick()
   ok(f.changesView:IsShown() and f.changesView.list.lines[1].entry, "Changes tab lists price changes")
   local row
   for r = 1, 3 do local l = f.changesView.list.lines[r] if l.entry and l.entry.id == id then row = l end end
@@ -1156,7 +1156,7 @@ do
   s.places[2].bits[2].scripts.OnClick()
   local BW = UI.BidWindow
   ok(BW.frame:IsShown() and BW.test, "test officer bid window shows")
-  ok(string.find(BW.frame.sections[3].lines[1].name:GetText(), "Testpriest", 1, true) and string.find(BW.frame.sections[2].lines[1].name:GetText(), "PRIO", 1, true), "it lists sample mainspec, offspec and transmog")
+  ok(string.find(BW.frame.sections[3].lines[1].name:GetText(), "Testpriest", 1, true) and string.find(BW.frame.sections[2].lines[1].name:GetText(), "Testpaladin", 1, true) and not string.find(BW.frame.sections[2].lines[1].name:GetText(), "PRIO", 1, true), "it lists sample mainspec, offspec and transmog")
   -- real bids incl. a transmog roll
   BW.Open()
   ok(not BW.test and string.find(BW.frame.sections[3].lines[1].name:GetText(), "Corvan", 1, true) and BW.frame.sections[3].lines[1].a:GetText() == "55" and string.find(BW.frame.sections[1].lines[1].name:GetText(), "Corvan", 1, true), "officer window shows real bids and transmog rolls")
@@ -1170,6 +1170,33 @@ do
   BW.Open()
   ok(not BW.frame:IsShown(), "members never get the officer window")
   SendChatMessage = oldSend
+end
+-- transmog list
+do
+  local PR, BP = UI.Prices, UI.BidPopup
+  UI.Select("prices")
+  local f = UI.pages.prices.frame
+  this = f.lootView.raidButtons[1]
+  f.lootView.raidButtons[1].scripts.OnClick()
+  local line = f.lootView.items.lines[3]
+  local id = line.entry.id
+  this, arg1 = line, "RightButton"
+  line.scripts.OnClick()
+  ok(PR.menu.buttons[2].text:GetText() == "Add to transmog list", "right-click offers the transmog list")
+  this = PR.menu.buttons[2]
+  PR.menu.buttons[2].scripts.OnClick()
+  ok(PR.State(id) == "xmog" and sepgp_wish.xmog[id] and line.mark.texture == PR.XMOG_ICON, "on the transmog list, with its mark")
+  local tab
+  for i = 1, table.getn(f.tabs) do if f.tabs[i].key == "xmog" then tab = f.tabs[i] end end
+  this = tab
+  tab.scripts.OnClick()
+  ok(f.xmogView:IsShown() and f.xmogView.list.lines[1].entry.id == id, "Transmog tab lists it")
+  BP.OnCall(PR.Link(id), "Corvan", 1, 1, nil)
+  ok(BP.frame.title:GetText() == "X-MOG ROLL", "pop-up says X-MOG ROLL")
+  this = f.xmogView.list.lines[1].action
+  f.xmogView.list.lines[1].action.scripts.OnClick()
+  ok(PR.State(id) == nil, "removed from the transmog list")
+  BP.frame:Hide()
 end
 -- topics: Prices right under Home, every topic has its icon
 ok(UI.order[1] == "home" and UI.order[2] == "prices", "Prices is the second topic (" .. tostring(UI.order[2]) .. ")")

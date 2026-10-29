@@ -281,7 +281,7 @@ local function Fill(d, id, ml, link, need, greed, bid, test)
   d.price:SetText((ms and ("Mainspec " .. UI.Paint(C.text, ms .. " GP") .. "    Offspec " .. UI.Paint(C.text, os .. " GP")) or "No GP price set")
     .. UI.Paint(C.dim, "    called by " .. tostring(ml)))
   local st = PR.State(id)
-  if test == "wish" then st = "wish" elseif test then st = nil end
+  if test == "wish" or test == "xmog" then st = test elseif test then st = nil end
   -- a wish list item: green and loud
   local edge = (st == "wish") and C.on or C.accent
   d:SetBackdropBorderColor(edge[1], edge[2], edge[3], 1)
@@ -290,12 +290,20 @@ local function Fill(d, id, ml, link, need, greed, bid, test)
     UI.Font(d.title, 15, { 0.55, 1, 0.6 })
     d.title:SetText((test and "TEST - " or "") .. "WISHLISTED ITEM!")
     d.star:Show()
+  elseif st == "xmog" then
+    d.bar:SetVertexColor(0.42, 0.32, 0.08, 1)
+    UI.Font(d.title, 15, C.gold)
+    d.title:SetText((test and "TEST - " or "") .. "X-MOG ROLL")
+    d:SetBackdropBorderColor(C.gold[1], C.gold[2], C.gold[3], 1)
+    d.star:Hide()
   else
     d.bar:SetVertexColor(C.head[1], C.head[2], C.head[3], 1)
     UI.Font(d.title, 12, C.gold)
     d.title:SetText(test and "Test bid pop-up" or "Bids are open")
     d.star:Hide()
   end
+  -- a transmog list item: the roll button lights up
+  if st == "xmog" then d.xmog:SetBackdropColor(0.42, 0.32, 0.08, 1) else d.xmog:SetBackdropColor(C.btn[1], C.btn[2], C.btn[3], 1) end
   if test then
     d.hint:SetText(P.DB("bid").locked and "Locked - unlock it in Settings to move it" or "Drag it where you want it")
   else
