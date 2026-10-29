@@ -1074,6 +1074,24 @@ do
   UI.LayoutNav()
   ok(not UI.pages.quickpoints.nav:IsShown(), "hidden from members")
 end
+-- a member's history shows their decays (with before / after from the decay log)
+do
+  local recs = UI.Decay.List()
+  local who = recs[1] and recs[1].m[1] and recs[1].m[1][1]
+  ok(who, "a decay record to look at")
+  if who then
+    UI.OpenHistory(who)
+    local st = UI.pages.standings.frame
+    st.histTab = "all"
+    UI.pages.standings.fillHistory(st)
+    local found
+    for i = 1, table.getn(st.hv.list.rows) do
+      local c = st.hv.list.rows[i].cells[2]
+      if string.find(c, "% decay", 1, true) and string.find(c, "(now ", 1, true) then found = st.hv.list.rows[i] end
+    end
+    ok(found and string.find(found.cells[3], "-", 1, true), "decay listed in " .. who .. "'s history with the EP it took (" .. tostring(found and found.cells[2]) .. ")")
+  end
+end
 -- slash
 SlashCmdList.SEPGPUI("logs")
 ok(UI.current == "logs", "/epgp logs opens Logs")

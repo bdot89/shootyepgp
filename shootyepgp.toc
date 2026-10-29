@@ -7,7 +7,7 @@
 ## X-Website: https://github.com/bdot89/shootyepgp
 ## X-Category: Guild
 ## X-Credits: shooty, Qcat(zhCN)
-## Version: 10.23.0
+## Version: 10.23.1
 ## X-Alpha: 
 ## OptionalDeps: Ace2
 ## SavedVariables: sepgp_saychannel, sepgp_groupbyclass, sepgp_groupbyarmor, sepgp_groupbyrole, sepgp_raidonly, sepgp_dbver, sepgp_debug, sepgp_fubar, sepgp_sound, RaidStrikeDB, RaidStrikeResetTime, sepgp_ui, sepgp_history, sepgp_accounts, sepgp_price_edits

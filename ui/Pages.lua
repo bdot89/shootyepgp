@@ -497,12 +497,30 @@ UI.Page{ key = "standings", label = "Standings", tip = "Everyone's EP, GP and PR
     for i = 1, 3 do UI.Pick(hv.tabs[i], hv.tabs[i].key == f.histTab) end
     local m = UI.byName and UI.byName[f.sel]
     local evs = UI.History.For(f.sel)
+    -- decays: everyone's, with this member's before / after when the decay log has them
+    if UI.Decay and UI.Decay.ForMember then
+      local copy = {}
+      for i = 1, table.getn(evs) do copy[i] = evs[i] end
+      local dec = UI.Decay.ForMember(f.sel)
+      for i = 1, table.getn(dec) do table.insert(copy, dec[i]) end
+      evs = copy
+    end
     local rows = {}
     for i = 1, table.getn(evs) do
       local e = evs[i]
       local keep = f.histTab == "all" or (f.histTab == "loot" and e.k == "L") or (f.histTab == "points" and e.k ~= "L")
       if keep then
-        local what, ep, gp = UI.History.Describe(e)
+        local what, ep, gp
+        if e.k == "X" then
+          what = UI.Paint(C.gold, (e.pct or 0) .. "% decay") .. UI.Paint(C.dim, "  (now " .. tostring(e.epA) .. " EP, " .. tostring(e.gpA) .. " GP)")
+          local dEP, dGP = (e.epA or 0) - (e.epB or 0), (e.gpA or 0) - (e.gpB or 0)
+          ep = dEP ~= 0 and UI.Paint(C.red, tostring(dEP)) or ""
+          gp = dGP ~= 0 and UI.Paint(C.on, tostring(dGP)) or ""
+        elseif e.k == "XU" then
+          what, ep, gp = UI.Paint(C.gold, (e.pct or 0) .. "% decay undone") .. UI.Paint(C.dim, "  (put back)"), "", ""
+        else
+          what, ep, gp = UI.History.Describe(e)
+        end
         if m and e.w and e.w ~= f.sel then what = what .. UI.Paint(C.dim, "  (" .. e.w .. ")") end
         table.insert(rows, { id = i, data = e, cells = { UI.Paint(C.dim, UI.History.When(e.t)), what, ep, gp },
           sort = { t = e.t, what = e.k .. (e.nm or ""), ep = (e.k == "E") and e.n or 0, gp = (e.k == "G" or e.k == "L") and e.n or 0, tie = i } })

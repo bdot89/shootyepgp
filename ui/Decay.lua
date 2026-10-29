@@ -133,6 +133,28 @@ function D.HistoryOnly(recs)
   return out
 end
 
+-- One member's decays for their history list (guild leader, 29 Oct 2026):
+--   { k = "X", t, pct, by, epB, gpB, epA, gpA }   a decay in this log, with their before / after
+--   { k = "XU", t, pct, by }                       its undo
+--   the EP / GP history's decay lines with no record here (H events k = "D")
+function D.ForMember(name)
+  local out = {}
+  local recs = D.List()
+  for i = 1, table.getn(recs) do
+    local r = recs[i]
+    for j = 1, table.getn(r.m) do
+      local x = r.m[j]
+      if x[1] == name then
+        table.insert(out, { k = "X", t = r.t, pct = r.pct, by = r.by, epB = x[2], gpB = x[3], epA = x[4], gpA = x[5] })
+        if r.undo then table.insert(out, { k = "XU", t = r.undo.t, pct = r.pct, by = r.undo.by }) end
+      end
+    end
+  end
+  local old = D.HistoryOnly(recs)
+  for i = 1, table.getn(old) do table.insert(out, old[i]) end
+  return out
+end
+
 -- The newest decay that still counts (not undone): { t, by } or nil
 function D.Last()
   local recs = D.List()
