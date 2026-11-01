@@ -564,6 +564,9 @@ UI.Page{ key = "standings", label = "Standings", tip = "Everyone's EP, GP and PR
     RunRefreshers(f)
     local rows = {}
     local list = UI.roster or {}
+    if UI.NotesHidden() then list = {} end   -- the game gives this rank blank officer notes: no zeros
+    f.list.emptyText = UI.NotesHidden() and UI.NotesHiddenText()
+      or "No one to show. EP and GP live in the guild's officer notes - press Refresh at the top if the guild list is still loading."
     for i = 1, table.getn(list) do
       local m = list[i]
       local minep = sepgp_minep or 0

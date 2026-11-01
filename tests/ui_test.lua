@@ -638,6 +638,19 @@ do
   UI.Open("accounts")
   ok(UI.FoldOpen("officer") and UI.current == "accounts", "/epgp accounts unfolds Officer")
 end
+-- ---------------------------------------------------------------- rank without "View officer note"
+do
+  CanViewOfficerNote = function() return nil end
+  UI.Open("standings")
+  UI.Refresh()
+  local sf = UI.pages.standings.frame
+  ok(table.getn(sf.list.view) == 0 and string.find(sf.list.emptyText, "view officer notes", 1, true), "hidden notes: no zeros, an explanation")
+  ok(string.find(UI.summary.whoSub:GetText(), "cannot see officer notes", 1, true), "hidden notes: summary says so")
+  CanViewOfficerNote = function() return 1 end
+  UI.Refresh()
+  ok(table.getn(sf.list.view) > 0, "notes visible again: standings back")
+  CanViewOfficerNote = nil
+end
 -- ---------------------------------------------------------------- versions
 do
   local VV = UI.Versions

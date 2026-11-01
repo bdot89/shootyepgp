@@ -37,6 +37,17 @@ end
 -- ------------------------------------------------------------------ data
 
 function UI.IsAdmin() return CanEditOfficerNote() and true or false end
+-- EP and GP live in officer notes; a rank without "View officer note" gets them
+-- blank from the game, so every member would read 0.
+function UI.NotesHidden()
+  return IsInGuild() and CanViewOfficerNote ~= nil and not CanViewOfficerNote() and true or false
+end
+function UI.NotesHiddenText()
+  local _, rank = GetGuildInfo("player")
+  return "Your guild rank" .. (rank and (" (" .. rank .. ")") or "") .. " is not allowed to view officer notes, and EP / GP are kept in them, "
+    .. "so the game shows this character everyone's points as empty. Nothing is lost. "
+    .. "The guild leader can tick \"View officer note\" for this rank in Guild Control, or check on a character with a rank that can."
+end
 function UI.IsGL() return IsGuildLeader() and true or false end
 function UI.Ready() return sepgp and sepgp.VARS and sepgp.get_ep_v3 and true or false end
 
@@ -356,6 +367,8 @@ function UI.RefreshSummary()
   local role = UI.IsGL() and "Guild leader" or (UI.IsAdmin() and "Officer (can edit EPGP)" or "Member")
   if not IsInGuild() then
     s.whoSub:SetText("Not in a guild - EPGP lives in guild notes")
+  elseif UI.NotesHidden() then
+    s.whoSub:SetText(UI.Paint(C.red, "Your rank cannot see officer notes - see Standings"))
   elseif me and char and me ~= char then
     s.whoSub:SetText(role .. "  -  alt of " .. UI.ClassName(me.name, me.class))
   elseif me then
