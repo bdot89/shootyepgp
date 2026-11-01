@@ -78,7 +78,8 @@ officer notes** (the same rule shootyepgp has always used).
 |---|---|
 | **Standings** (details) | Give or take EP / GP from one member (a minus is a penalty). |
 | **Raids** (open a raid) | **Fix a raid afterwards** - e.g. an award an officer forgot: tick members (or use *everyone*) and give or take EP / GP. It is logged and shows in each member's history as a *raid correction*. |
-| **Bids** | The item up for bids, its GP price, mainspec and offspec bidders with their PR. Click a bidder to announce the winner. Loot master: countdown and attention ping. |
+| **Bids** | The item up for bids, its GP price, mainspec and offspec bidders with their PR. Click a bidder to announce the winner. Loot master: countdown and attention ping. **Only the master looter can start a bid** (an item link with `+` / `-` / `ms` / `os` in raid chat); the same line from anyone else does nothing. |
+| **Practice a loot hand-out** (Settings > Pop-up windows, or `/epgp practice`) | A pretend bid on a random raid item, only on your screen: the raider pop-up, your bid in the bid window, countdown, announcing the winner and giving the GP. Nothing reaches officer notes, chat or other players. |
 | **Standby** | Who answered the standby check, run a standby check, give standby EP. |
 | **Alts** | Which characters are alts of which mains (`{MainName}` in the alt's officer note). |
 | **Strikes** | Raid strikes and the strike panel (`/strike`). |

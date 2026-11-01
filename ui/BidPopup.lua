@@ -169,7 +169,9 @@ local function Build()
     if col then b:SetBackdropBorderColor(col[1], col[2], col[3], 1) end
     b.bid = bid
     b:SetScript("OnClick", function()
-      if this.bid and d.test then
+      if d.test == "practice" then
+        if this.bid then UI.LootPractice.Bid(this.bid) end
+      elseif this.bid and d.test then
         UI.Print("test pop-up: this would " .. (this.bid == "roll" and ("/roll " .. BP.ROLL_MAX) or ("whisper " .. this.bid .. " to the loot master")) .. " (" .. BID_NAME[this.bid] .. ")")
       elseif this.bid == "roll" then
         RandomRoll(1, BP.ROLL_MAX)
@@ -221,7 +223,7 @@ local function Build()
   end)
   ig:SetScript("OnClick", function()
     if d.test then
-      UI.Print("test pop-up: nothing is ignored")
+      UI.Print((d.test == "practice" and "practice" or "test pop-up") .. ": nothing is ignored")
     elseif d.id then
       PR.SetState(d.id, "ignore")
       UI.Print((d.link or "the item") .. " will not pop up again (undo: /epgp prices > Ignored)")
@@ -281,7 +283,7 @@ local function Fill(d, id, ml, link, need, greed, bid, test)
   d.price:SetText((ms and ("Mainspec " .. UI.Paint(C.text, ms .. " GP") .. "    Offspec " .. UI.Paint(C.text, os .. " GP")) or "No GP price set")
     .. UI.Paint(C.dim, "    called by " .. tostring(ml)))
   local st = PR.State(id)
-  if test == "wish" or test == "xmog" then st = test elseif test then st = nil end
+  if test == "wish" or test == "xmog" then st = test elseif test then st = PR.State(id) == "wish" and test == "practice" and "wish" or nil end
   -- a wish list item: green and loud
   local edge = (st == "wish") and C.on or C.accent
   d:SetBackdropBorderColor(edge[1], edge[2], edge[3], 1)
@@ -299,12 +301,14 @@ local function Fill(d, id, ml, link, need, greed, bid, test)
   else
     d.bar:SetVertexColor(C.head[1], C.head[2], C.head[3], 1)
     UI.Font(d.title, 12, C.gold)
-    d.title:SetText(test and "Test bid pop-up" or "Bids are open")
+    d.title:SetText((test == "practice" and "PRACTICE - Bids are open") or (test and "Test bid pop-up") or "Bids are open")
     d.star:Hide()
   end
   -- a transmog list item: the roll button lights up
   if st == "xmog" then d.xmog:SetBackdropColor(0.42, 0.32, 0.08, 1) else d.xmog:SetBackdropColor(C.btn[1], C.btn[2], C.btn[3], 1) end
-  if test then
+  if test == "practice" then
+    d.hint:SetText("Practice: only on your screen")
+  elseif test then
     d.hint:SetText(P.DB("bid").locked and "Locked - unlock it in Settings to move it" or "Drag it where you want it")
   else
     d.hint:SetText("")
@@ -321,6 +325,8 @@ end
 function BP.OnCall(link, ml, need, greed, bid)
   local PR = UI.Prices
   if not PR or not link then return end
+  -- only the master looter's call opens it (sepgp:isLootCaller), never a member's chat line
+  if sepgp and sepgp.isLootCaller and not sepgp:isLootCaller(ml) then return end
   local _, _, id = string.find(link, "item:(%d+)")
   id = tonumber(id)
   if not id then return end
@@ -396,3 +402,9 @@ function BP.Test()
 end
 
 function BP.Frame() return BP.frame or Build() end
+
+-- the practice hand-out (ui\LootPractice.lua): bids go to the practice lists
+function BP.Practice(id, link)
+  local d = BP.frame or Build()
+  Fill(d, id, "Practice", link, 1, 1, nil, "practice")
+end

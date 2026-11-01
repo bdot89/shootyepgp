@@ -694,7 +694,7 @@ UI.Page{ key = "bids", label = "Bids", tip = "The item up for bids and everyone 
     RunRefreshers(f)
     local it = sepgp.bid_item or {}
     if it.link then
-      f.itemText:SetText(it.link)
+      f.itemText:SetText(it.linkFull or it.name or it.link)   -- the name, not "item:123:0:0:0"
       local ok, osPrice, price = pcall(sepgp_prices.GetOffspec, sepgp_prices, it.link, sepgp_progress)
       if ok and price then
         f.cost:SetText("Mainspec " .. price .. " GP   -   Offspec " .. osPrice .. " GP")
@@ -1239,6 +1239,12 @@ UI.Page{ key = "settings", label = "Settings", tip = "Your own shootyepgp settin
       function() UI.BidPopup.Test() end, function() return UI.BidPopup.frame end)
     local officerRow = PlaceRows(-112, "officer", "Officer bid window", "Shows the officers' bid window with sample bids. Drag it where you want it, then lock it.",
       function() UI.BidWindow.Test() end, function() return UI.BidWindow.frame end)
+    local prac = UI.Button(pw, "Practice", 74, 20)
+    prac:SetPoint("TOPRIGHT", pw, "TOPRIGHT", -82, -109)
+    prac:SetBackdropBorderColor(C.gold[1], C.gold[2], C.gold[3], 1)
+    prac:SetScript("OnClick", function() UI.LootPractice.Toggle() end)
+    UI.Tip(prac, "Practice a loot hand-out", "A pretend bid on a random raid item, only on your screen: the raider pop-up, your bid in the bid window, countdown, announcing the winner and giving the GP. Nothing reaches officer notes, chat or other players. Click again (or /epgp practice) to stop.")
+    table.insert(officerRow.bits, prac)
     -- the wish list alert: which sound, and a test
     UI.Label(pw, "Wish list sound", 12, -196)
     local sounds = {}

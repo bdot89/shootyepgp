@@ -146,7 +146,7 @@ ITEM_QUALITY_COLORS = { [4] = { hex = "|cffa335ee" } }
 -- ------------------------------------------------------------ load
 sepgp.gp_prices = { [16900] = { 175, "T2" }, [19402] = { 225, "T2" } }
 sepgp_price_edits = { [19402] = { gp = 225, by = "Aldren", at = 1 }, [16900] = { gp = 200, by = "Aldren", at = 2 } }
-for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Accounts.lua", "ui/Decay.lua", "loot_db.lua", "ui/Prices.lua", "ui/BidPopup.lua", "ui/BidWindow.lua", "ui/QuickPoints.lua", "ui/Versions.lua", "ui/Minimap.lua" }) do dofile(f) end
+for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Accounts.lua", "ui/Decay.lua", "loot_db.lua", "ui/Prices.lua", "ui/BidPopup.lua", "ui/BidWindow.lua", "ui/LootPractice.lua", "ui/QuickPoints.lua", "ui/Versions.lua", "ui/Minimap.lua" }) do dofile(f) end
 local UI = SEPGP_UI
 local function Dump() for i = 1, table.getn(Mock.printed) do print("chat: " .. Mock.printed[i]) end Mock.printed = {} end
 Mock.Fire("ADDON_LOADED", "shootyepgp")
@@ -1156,11 +1156,35 @@ do
   s.places[2].bits[2].scripts.OnClick()
   local BW = UI.BidWindow
   ok(BW.frame:IsShown() and BW.test, "test officer bid window shows")
-  ok(string.find(BW.frame.sections[3].lines[1].name:GetText(), "Testpriest", 1, true) and string.find(BW.frame.sections[2].lines[1].name:GetText(), "Testpaladin", 1, true) and not string.find(BW.frame.sections[2].lines[1].name:GetText(), "PRIO", 1, true), "it lists sample mainspec, offspec and transmog")
+  ok(string.find(BW.frame.bands[3].rows[1].name:GetText(), "Testpriest", 1, true) and string.find(BW.frame.bands[2].rows[1].name:GetText(), "Testpaladin", 1, true) and not string.find(BW.frame.bands[2].rows[1].name:GetText(), "PRIO", 1, true), "it lists sample mainspec, offspec and transmog")
   -- real bids incl. a transmog roll
   BW.Open()
-  ok(not BW.test and string.find(BW.frame.sections[3].lines[1].name:GetText(), "Corvan", 1, true) and BW.frame.sections[3].lines[1].a:GetText() == "55" and string.find(BW.frame.sections[1].lines[1].name:GetText(), "Corvan", 1, true), "officer window shows real bids and transmog rolls")
+  ok(not BW.test and string.find(BW.frame.bands[3].rows[1].name:GetText(), "Corvan", 1, true) and BW.frame.bands[3].rows[1].a:GetText() == "55" and string.find(BW.frame.bands[1].rows[1].name:GetText(), "Corvan", 1, true), "officer window shows real bids and transmog rolls")
+  -- loot master tools are back in the small window
+  local nCalls = table.getn(calls)
+  local realBids = sepgp_bids
+  sepgp_bids = { bidCountdown = function() table.insert(calls, "countdown:nil:nil") end, sendAttention = function() table.insert(calls, "attention:nil:nil") end,
+    announceWinnerMS = function(self, n, pr) table.insert(calls, "winMS:" .. n .. ":" .. tostring(pr)) end, announceWinnerOS = function() end }
+  sepgp.lootMaster = function() return true end
+  BW.Draw()
+  ok(not BW.frame.countdown.disabledLook and not BW.frame.attention.disabledLook, "loot master gets Countdown and Attention")
+  this = BW.frame.countdown
+  BW.frame.countdown.scripts.OnClick()
+  ok(calls[nCalls + 1] == "countdown:nil:nil", "Countdown from the small window (" .. tostring(calls[nCalls + 1]) .. ")")
+  this = BW.frame.attention
+  BW.frame.attention.scripts.OnClick()
+  ok(calls[nCalls + 2] == "attention:nil:nil", "Attention from the small window")
+  this = BW.frame.bands[1].rows[1]
+  BW.frame.bands[1].rows[1].scripts.OnClick()
+  UI.ConfirmYes()
+  ok(string.find(calls[table.getn(calls)], "^winMS:Corvan:"), "click a bidder: winner announced (" .. tostring(calls[table.getn(calls)]) .. ")")
+  sepgp.lootMaster = function() return false end
+  BW.Draw()
+  ok(BW.frame.countdown.disabledLook, "others cannot count down")
+  sepgp_bids = realBids
+  ok(string.find(BW.frame.item:GetText(), "Stormrage Cover", 1, true) and not string.find(BW.frame.item:GetText(), "item:", 1, true), "item shown by name (" .. tostring(BW.frame.item:GetText()) .. ")")
   UI.Select("bids")
+  ok(not string.find(UI.pages.bids.frame.itemText:GetText() or "", "^item:"), "full Bids page shows the item name")
   ok(UI.pages.bids.frame.xmog.view[1] and UI.pages.bids.frame.xmog.view[1].id == "Corvan", "Bids topic lists rolls, highest first")
   admin = false
   UI.LayoutNav()
@@ -1197,6 +1221,44 @@ do
   f.xmogView.list.lines[1].action.scripts.OnClick()
   ok(PR.State(id) == nil, "removed from the transmog list")
   BP.frame:Hide()
+end
+-- practice loot hand-out: the whole cycle, nothing leaves this copy
+do
+  admin = true
+  local LP, BP, BW = UI.LootPractice, UI.BidPopup, UI.BidWindow
+  local sent, said, nCalls = {}, {}, table.getn(calls)
+  local oldSend, oldAddon, oldWide = SendChatMessage, sepgp.addonMessage, sepgp.widestAudience
+  SendChatMessage = function(m) table.insert(said, m) end
+  sepgp.addonMessage = function(self, m) table.insert(sent, m) end
+  sepgp.widestAudience = function(self, m) table.insert(said, m) end
+  local realItem, realMain = sepgp.bid_item, sepgp.bids_main
+  SlashCmdList.SEPGPUI("practice")
+  ok(LP.on and BP.frame:IsShown() and BP.frame.test == "practice" and string.find(BP.frame.title:GetText(), "PRACTICE", 1, true), "practice: the raider pop-up comes up, marked PRACTICE")
+  ok(BW.frame:IsShown() and string.find(BW.frame.title:GetText(), "PRACTICE", 1, true) and BW.frame.stop:IsShown(), "practice: the bid window opens, marked PRACTICE, with Stop practice")
+  this = BP.frame.ms
+  BP.frame.ms.scripts.OnClick()
+  local mine
+  for i = 1, table.getn(LP.data.bids_main) do if LP.data.bids_main[i][1] == "Aldren" then mine = true end end
+  ok(mine, "your mainspec bid lands in the practice list")
+  BW.Draw()
+  ok(not BW.frame.countdown.disabledLook, "you can count down in practice")
+  this = BW.frame.countdown
+  BW.frame.countdown.scripts.OnClick()
+  Mock.Tick(7)
+  ok(LP.counter and string.find(LP.counter, "Finished", 1, true), "practice countdown runs to the end")
+  local row
+  for r = 1, 8 do local x = BW.frame.bands[1].rows[r] if x.bid and x.bid[1] == "Aldren" then row = x end end
+  this = row
+  row.scripts.OnClick()
+  UI.ConfirmYes()
+  ok(LP.winner and LP.winner.name == "Aldren", "click yourself: announced (in practice)")
+  UI.ConfirmYes()
+  ok(LP.given and string.find(LP.given, "GP", 1, true), "GP given in practice (" .. tostring(LP.given) .. ")")
+  ok(table.getn(sent) == 0 and table.getn(said) == 0 and table.getn(calls) == nCalls, "nothing sent, said or written")
+  ok(sepgp.bid_item == realItem and sepgp.bids_main == realMain, "the real bid data is untouched")
+  SlashCmdList.SEPGPUI("practice")
+  ok(not LP.on and not BW.frame:IsShown(), "practice switches off")
+  SendChatMessage, sepgp.addonMessage, sepgp.widestAudience = oldSend, oldAddon, oldWide
 end
 -- topics: Prices right under Home, every topic has its icon
 ok(UI.order[1] == "home" and UI.order[2] == "prices", "Prices is the second topic (" .. tostring(UI.order[2]) .. ")")

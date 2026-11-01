@@ -820,7 +820,9 @@ function sepgp:addonMessage(message,channel,sender)
 end
 
 function sepgp:addonComms(prefix,message,channel,sender)
-  if not prefix == self.VARS.prefix then return end -- we don't care for messages from other addons
+  -- we don't care for messages from other addons (was "not prefix == ...", always false, so every addon's
+  -- hidden messages were read as shootyepgp ones until 1 Nov 2026)
+  if prefix ~= self.VARS.prefix then return end
   if sender == self._playerName then return end -- we don't care for messages from ourselves
   local name_g,class,rank = self:verifyGuildMember(sender,true,true)
   if not (name_g) then return end -- only accept messages from guild members
@@ -878,6 +880,13 @@ function sepgp:addonComms(prefix,message,channel,sender)
         self:shareSettings()
       end
     elseif who == "SETTINGS" then
+      -- only the guild leader's copy sends these (shareSettings); ignore anyone else's
+      local senderRank
+      for i = 1, GetNumGuildMembers(1) do
+        local n, _, ri = GetGuildRosterInfo(i)
+        if n == sender then senderRank = ri break end
+      end
+      if senderRank ~= 0 then return end
       for progress,discount,decay,minep,alts,altspct in string.gfind(what, "([^:]+):([^:]+):([^:]+):([^:]+):([^:]+):([^:]+)") do
         discount = tonumber(discount)
         decay = tonumber(decay)
@@ -944,7 +953,7 @@ function sepgp:addonComms(prefix,message,channel,sender)
     -- Handle bid start broadcast from master looter
     elseif who == "BIDSTART" then
       -- Only officers/supreme leaders who are NOT the ML should process this
-      if not self:lootMaster() and self:canReceiveBidBroadcast() then
+      if not self:lootMaster() and self:canReceiveBidBroadcast() and self:isLootCaller(sender) then
         -- Parse: BIDSTART;itemID;1
         local itemID = what
         if not itemID or itemID == "" then return end
@@ -977,7 +986,7 @@ function sepgp:addonComms(prefix,message,channel,sender)
     -- Handle bid data broadcast from master looter
     elseif who == "BIDS" then
       -- Only officers/supreme leaders who are NOT the ML should process this
-      if not self:lootMaster() and self:canReceiveBidBroadcast() then
+      if not self:lootMaster() and self:canReceiveBidBroadcast() and self:isLootCaller(sender) then
         if not running_bid then return end
         -- Parse comma-separated bid entries
         for bidData in string.gfind(what, "([^,]+)") do
@@ -1023,13 +1032,13 @@ function sepgp:addonComms(prefix,message,channel,sender)
     -- Handle bid clear broadcast from master looter
     elseif who == "BIDCLEAR" then
       -- Only officers/supreme leaders who are NOT the ML should process this
-      if not self:lootMaster() and self:canReceiveBidBroadcast() then
+      if not self:lootMaster() and self:canReceiveBidBroadcast() and self:isLootCaller(sender) then
         self:clearBids()
       end
     -- Handle attention signal from master looter
     elseif who == "BIDATTENTION" then
       -- Only officers/supreme leaders who are NOT the ML should process this
-      if not self:lootMaster() and self:canReceiveBidBroadcast() then
+      if not self:lootMaster() and self:canReceiveBidBroadcast() and self:isLootCaller(sender) then
         self:playAttentionSound()
         self:defaultPrint(C:Yellow(L["Attention! Master Looter wants you to check the bid window."]))
       end
@@ -1623,6 +1632,7 @@ lootCall.bs = { -- blacklist
 }
 function sepgp:captureLootCall(text, sender)
   if not (string.find(text, "|Hitem:", 1, true)) then return end
+  if not self:isLootCaller(sender) then return end   -- only the master looter calls loot
   local linkstriptext, count = string.gsub(text,"|c%x+|H[eimt:%d]+|h%[[%w%s',%-]+%]|h|r"," ; ")
   if count > 1 then return end
   local lowtext = string.lower(linkstriptext)
@@ -2073,6 +2083,39 @@ function sepgp:lootMaster()
   else
     return false
   end
+end
+
+-- The raid's master looter by name; nil when the loot is not master loot or
+-- the client does not say who it is (raidMaster may be missing on 1.12).
+function sepgp:masterLooterName()
+  local method, partyMaster, raidMaster = GetLootMethod()
+  if method ~= "master" then return nil end
+  if partyMaster == 0 then return self._playerName or UnitName("player") end
+  if raidMaster and GetNumRaidMembers() > 0 then
+    local name = GetRaidRosterInfo(raidMaster)
+    if name then return name end
+  end
+  if partyMaster then return UnitName("party" .. partyMaster) end
+  return nil
+end
+
+-- May this player start a bid (an item link with +/-/ms/os in raid chat) or
+-- send the bid broadcasts? Only the master looter. (Until 1 Nov 2026 anyone's
+-- raid chat line counted, so a member's "[item] -" opened everyone's bid
+-- pop-up and made the loot master's copy drop its bids and start over.)
+-- When master loot is on but the client cannot name the looter, the raid
+-- leader and assistants are trusted instead - never a plain member.
+function sepgp:isLootCaller(name)
+  if not name or name == "" then return false end
+  local method = GetLootMethod()
+  if method ~= "master" then return false end
+  local ml = self:masterLooterName()
+  if ml then return name == ml end
+  for i = 1, GetNumRaidMembers() do
+    local n, rank = GetRaidRosterInfo(i)
+    if n == name then return (rank or 0) >= 1 end
+  end
+  return false
 end
 
 -- Check if player can receive bid broadcasts (Officer or Supreme leader rank)

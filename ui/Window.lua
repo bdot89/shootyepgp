@@ -620,6 +620,7 @@ SLASH_SEPGPUI1 = "/epgp"
 SlashCmdList["SEPGPUI"] = function(msg)
   msg = string.lower(msg or "")
   if msg == "" then UI.Toggle() return end
+  if msg == "practice" and UI.LootPractice then UI.LootPractice.Toggle() return end
   if UI.pages[msg] then UI.Open(msg) return end
-  UI.Print("/epgp opens the window. /epgp <topic>: home, standings, bids, loot, prices, reserves, alts, logs, strikes, tools, settings, officer, decay, addons, accounts")
+  UI.Print("/epgp opens the window. /epgp <topic>: home, standings, bids, loot, prices, reserves, alts, logs, strikes, tools, settings, officer, decay, addons, accounts, practice (officers: a pretend loot hand-out)")
 end

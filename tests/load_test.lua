@@ -5,7 +5,8 @@ Mock.raid, Mock.party = 0, 0
 TEXT = function(s) return s end
 YES, NO, OKAY, ACCEPT, CANCEL, CLOSE = "Yes", "No", "Okay", "Accept", "Cancel", "Close"
 ITEM_QUALITY_COLORS = {}
-for i = -1, 6 do ITEM_QUALITY_COLORS[i] = { r = 1, g = 1, b = 1, hex = "|cffffffff" } end
+for i = -1, 6 do ITEM_QUALITY_COLORS[i] = { r = 1, g = 1, b = 1, hex = "|cff" .. string.rep(tostring(i + 1), 6) } end
+ITEM_QUALITY_COLORS[4].hex = "|cffa335ee"   -- epic, as the game has it
 TOOLTIP_DEFAULT_COLOR = { r = 1, g = 1, b = 1 }
 TOOLTIP_DEFAULT_BACKGROUND_COLOR = { r = 0, g = 0, b = 0 }
 RAID_CLASS_COLORS = {}
@@ -106,6 +107,11 @@ local okUndo, errUndo = pcall(DL.Undo, rec and rec.id)
 ok(okUndo, "undo runs " .. tostring(errUndo))
 ok(G[1][2] == "{820:410}" and G[2][2] == "tank {1500:900}" and G[3][2] == "{120:300}", "undo puts the notes back (" .. G[1][2] .. " / " .. G[2][2] .. ")")
 ok(rec and rec.undo and rec.undo.n == 3, "undo recorded")
+-- a raid with master loot: Corvan (raid 2) is the loot master, Dalia a plain member
+local RAID = { { "Aldren", 2 }, { "Corvan", 1 }, { "Dalia", 0 } }
+GetNumRaidMembers = function() return table.getn(RAID) end
+GetRaidRosterInfo = function(i) local r = RAID[i] if not r then return nil end return r[1], r[2], 1, 60, "Warrior", "WARRIOR", "", 1, nil end
+GetLootMethod = function() return "master", nil, 2 end
 -- the REAL bid call line (sepgp:bidPrint) also brings up the bid pop-up (ui\BidPopup.lua)
 local okBid, errBid = pcall(sepgp.bidPrint, sepgp, "|cffa335ee|Hitem:19402:0:0:0|h[Legguards of the Fallen Crusader]|h|r", "Corvan", 1, 1, nil)
 ok(okBid and SEPGP_UI.BidPopup.frame and SEPGP_UI.BidPopup.frame:IsShown() and SEPGP_UI.BidPopup.frame.id == 19402, "real bid call opens the bid pop-up " .. tostring(errBid))
@@ -122,6 +128,40 @@ local oldRoster = GetGuildRosterInfo
 GetGuildRosterInfo = function(i) local g = G[i] if not g then return nil end return g[1], i == 2 and "Guild Master" or "Raider", i == 2 and 0 or 3, 60, "Warrior", "", "", g[2], 1 end
 local okOs, errOs = pcall(sepgp.addonComms, sepgp, sepgp.VARS.prefix, "OSTIER;T1=0.25,T2=0.4;1", "GUILD", "Corvan")
 ok(okOs and sepgp_prices:OffspecRate("T2") == 0.4 and sepgp_prices:GetOffspec(19402) == 90, "real OSTIER message sets the T2 offspec price " .. tostring(errOs))
+-- only the master looter can start a bid (1 Nov 2026: a member's "[item] -" in raid chat used to)
+local LEGS = "|cffa335ee|Hitem:19402:0:0:0|h[Legguards of the Fallen Crusader]|h|r"
+ok(sepgp:isLootCaller("Corvan") and not sepgp:isLootCaller("Dalia") and not sepgp:isLootCaller("Aldren"), "loot caller = the master looter only")
+local BPf = SEPGP_UI.BidPopup.frame
+BPf:Hide()
+pcall(sepgp.captureLootCall, sepgp, LEGS .. " -", "Dalia")
+ok(not BPf:IsShown(), "a member's \"[item] -\" opens no bid pop-up")
+pcall(sepgp.captureLootCall, sepgp, LEGS .. " +", "Aldren")
+ok(not BPf:IsShown(), "a raid assistant who is not the loot master opens none either")
+local okCall, errCall = pcall(sepgp.captureLootCall, sepgp, LEGS .. " +/-", "Corvan")
+ok(okCall and BPf:IsShown(), "the loot master's call still opens it " .. tostring(errCall))
+BPf:Hide()
+pcall(SEPGP_UI.BidPopup.OnCall, LEGS, "Dalia", 1, 1, nil)
+ok(not BPf:IsShown(), "the pop-up itself refuses a member's call")
+-- this copy is the loot master: a member's line must not wipe the running bids
+GetLootMethod = function() return "master", 0, 1 end
+sepgp.bid_item.link = "item:12345:0:0:0"
+pcall(sepgp.captureLootCall, sepgp, LEGS .. " -", "Dalia")
+ok(sepgp.bid_item.link == "item:12345:0:0:0", "a member's line leaves the loot master's bids alone")
+-- master loot on, but the client does not name the looter: leader / assistants only
+GetLootMethod = function() return "master", nil, nil end
+ok(sepgp:isLootCaller("Aldren") and sepgp:isLootCaller("Corvan") and not sepgp:isLootCaller("Dalia"), "unknown looter: leader / assistants, never a member")
+GetLootMethod = function() return "group", nil end
+ok(not sepgp:isLootCaller("Aldren"), "no master loot: nobody starts a bid")
+-- other addons' messages are not read as shootyepgp's, and only the guild leader sends settings
+GetGuildRosterInfo = function(i) local g = G[i] if not g then return nil end return g[1], i == 2 and "Guild Master" or "Raider", i == 2 and 0 or 3, 60, "Warrior", "", "", g[2], 1 end
+local progress0 = sepgp_progress
+pcall(sepgp.addonComms, sepgp, "SomeOtherAddon", "SETTINGS;T3:0.5:0.8:100:false:1;1", "GUILD", "Corvan")
+ok(sepgp_progress == progress0, "another addon's message is ignored")
+pcall(sepgp.addonComms, sepgp, sepgp.VARS.prefix, "SETTINGS;T3:0.5:0.8:100:false:1;1", "GUILD", "Dalia")
+ok(sepgp_progress == progress0, "settings from a member are ignored")
+local okSet = pcall(sepgp.addonComms, sepgp, sepgp.VARS.prefix, "SETTINGS;T3:0.25:0.9:300:false:1;1", "GUILD", "Corvan")
+ok(okSet and sepgp_progress == "T3", "settings from the guild leader still apply")
+sepgp_progress = progress0
 GetGuildRosterInfo = oldRoster
 for i = 1, table.getn(Mock.printed) do
   if string.find(Mock.printed[i], "rror") or string.find(Mock.printed[i], "page ") then print("chat: " .. Mock.printed[i]) fails = fails + 1 end
