@@ -842,14 +842,12 @@ local function CheckSkills()
     for id in pairs(db.profs) do
       if PROF_BY_ID[id] and not skills[id] then suspect = true break end
     end
-    if suspect then
-      local full, ok = ReadSkills(true)
-      if not ok then
-        skillsCheckAt = GetTime() + SKILL_DEBOUNCE   -- Skills pane open, come back
-        return
-      end
-      skills, complete = full, ok
-    end
+    -- ⚠ NO EXPAND HERE ANY MORE. This runs from OnUpdate, and expanding a
+    -- header from there hard-crashed the client (ERROR #132 at 0x004D38AE,
+    -- 2026-11-01, with ClassicAPI 1.18.14 dispatching the SKILL_LINES_CHANGED it
+    -- fires). A partial read simply announces no drops; a drop is caught the
+    -- next time the headers happen to be open.
+    if suspect then Note("collapsed skill header; drop check skipped") end
   end
 
   -- Gone from the pane means abandoned. The row is kept, flagged, and only
@@ -1101,16 +1099,11 @@ local function OnWindowVisible(isCraft)
 
   if prof then
     local state = ProfState(prof.id)
-    -- The cheap read first; only if THIS profession is the one hidden under a
-    -- collapsed header is an expand worth it — and here it is, because the
-    -- alternative is publishing a rank of 0/0. This path already only runs when
-    -- the recipe list actually changed, so it is rare.
+    -- Read-only: never expand a skill header from an event or OnUpdate (see
+    -- CheckSkills). A profession hidden under a collapsed header keeps its
+    -- last known rank instead.
     local skills = ReadSkills(false)
     local info = skills and skills[prof.id]
-    if not info then
-      skills = ReadSkills(true)
-      info = skills and skills[prof.id]
-    end
     -- The stored rank is -1 until the website has confirmed one, which is not
     -- a number to put on the wire; fall back to 0 when the pane is unreadable.
     local rank = (info and info.r) or state.r
@@ -1241,7 +1234,11 @@ f:SetScript("OnUpdate", function()
   -- window the PLAYER opened needs this just as much as one we opened.
   if winRecheckAt and now >= winRecheckAt then
     winRecheckAt = nil
-    if winIsCraft ~= nil then OnWindowVisible(winIsCraft) end
+    -- Only while that window is really on screen: no trade/craft reads in the
+    -- background.
+    if winIsCraft ~= nil and FrameShown(winIsCraft and "CraftFrame" or "TradeSkillFrame") then
+      OnWindowVisible(winIsCraft)
+    end
   end
 
 

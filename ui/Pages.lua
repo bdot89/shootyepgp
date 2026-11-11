@@ -1128,7 +1128,7 @@ UI.Page{ key = "tools", label = "Tools", tip = "The extra tools that come with t
 UI.Page{ key = "settings", label = "Settings", tip = "Your own shootyepgp settings and this window's look.",
   build = function(f)
     local cw = math.floor((PW - 8) / 2)
-    local a = UI.Card(f, "Loot and bids", cw, 150)
+    local a = UI.Card(f, "Loot and bids", cw, 178)
     a:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
     ToggleRow(f, a, 12, -36, "Loot sounds", "Plays a sound when loot is announced for bids.",
       function() return sepgp_sound == 1 end, function(v) sepgp_sound = v and 1 or 0 end)
@@ -1145,6 +1145,9 @@ UI.Page{ key = "settings", label = "Settings", tip = "Your own shootyepgp settin
     table.insert(Refreshers(f), function()
       if UI.IsAdmin() then bt:Show() bl:Show() else bt:Hide() bl:Hide() end
     end)
+    ToggleRow(f, a, 12, -148, "Show alts' main names", "Adds (Main) after an alt's name in chat, unit frames, nameplates and the raid window, from @Main in guild notes.",
+      function() return not UI.DB().altNamesOff end,
+      function(v) UI.DB().altNamesOff = not v end)
 
     ToolCard(f, 0, -266, "Profession sync", "Shares which recipes you know with the guild website (/profsync).",
       { { "Status", 90, Slash("SHOOTYPROFSYNC", "status"), "Prints what has been synced so far." },

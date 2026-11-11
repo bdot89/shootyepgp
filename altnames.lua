@@ -6,15 +6,23 @@ AltNames = CreateFrame("Frame")
 
 -- Lookup table: lowercase charname -> main name (proper case)
 AltNames.cache = {}
+-- Lookup table: lowercase charname -> class token (MAGE, ...), for colouring the main
+AltNames.classes = {}
+
+-- Off when the player unticked "Show alts' main names" (Settings page).
+function AltNames:Enabled()
+  return not (type(sepgp_ui) == "table" and sepgp_ui.altNamesOff)
+end
 
 -- Scan guild roster and build the cache
 function AltNames:ScanGuildRoster()
   local num = GetNumGuildMembers(true)
   if num == 0 then return end
 
-  local newcache = {}
+  local newcache, classes = {}, {}
   for i = 1, num do
-    local name, _, _, _, _, _, note = GetGuildRosterInfo(i)
+    local name, _, _, _, class, _, note = GetGuildRosterInfo(i)
+    if name and class then classes[string.lower(name)] = string.upper(class) end
     if name and note then
       local main = string.gsub(note, "^.*@(%w+).*$", "%1")
       -- Only store if the pattern actually matched (main ~= note means it matched)
@@ -24,12 +32,20 @@ function AltNames:ScanGuildRoster()
     end
   end
   self.cache = newcache
+  self.classes = classes
 end
 
--- Get main name for a character name, returns nil if none
+-- Get main name for a character name, returns nil if none (or switched off)
 function AltNames:GetMain(name)
-  if not name or name == "" then return nil end
+  if not name or name == "" or not self:Enabled() then return nil end
   return self.cache[string.lower(name)]
+end
+
+-- " (Main)" in the main's class colour, closed with |r so nothing after it changes
+function AltNames:Tag(main)
+  local c = RAID_CLASS_COLORS and RAID_CLASS_COLORS[self.classes[string.lower(main)] or ""]
+  if not c then return " (" .. main .. ")" end
+  return string.format(" |cff%02x%02x%02x(%s)|r", c.r * 255, c.g * 255, c.b * 255, main)
 end
 
 -- Append " (Main)" to a name string if alt is found
@@ -139,21 +155,23 @@ local function HookChat()
       local prevAddMessage = cf.AddMessage
 
       cf.AddMessage = function(frame, text, a1, a2, a3, a4, a5)
-        if text then
-          -- Match player links: |Hplayer:Name|h<color>Name|h  or  |Hplayer:Name|h[Name]|h
-          -- Append (Main) after the displayed name inside the link
-          text = string.gsub(text, "(|Hplayer:)([^|:]+)([^|]*|h)([^|]-)(|h)", function(pre, pname, mid, display, post)
+        if text and AltNames:Enabled() and string.find(text, "|Hplayer:") then
+          -- ⚠ The link itself is left untouched and (Main) goes AFTER it, opened
+          -- with |r in case the link sat inside a class colour. Rewriting the
+          -- name inside the link (the old way) stopped other chat addons from
+          -- finding it, so alts lost their class colour. The display may hold
+          -- colour codes, so it is matched up to the first |h, not as "no pipes".
+          text = string.gsub(text, "(|Hplayer:([^|:]+)[^|]*|h.-|h)", function(link, pname)
             local real = pname
             local dashpos = string.find(real, "%-")
             if dashpos then
               real = string.sub(real, 1, dashpos - 1)
             end
             local main = AltNames:GetMain(real)
-            if main and not string.find(display, "%(" .. main .. "%)") then
-              return pre .. pname .. mid .. display .. " (" .. main .. ")" .. post
-            else
-              return pre .. pname .. mid .. display .. post
+            if main and string.lower(main) ~= string.lower(real) then
+              return link .. "|r" .. AltNames:Tag(main)
             end
+            return link
           end)
         end
 
@@ -228,6 +246,9 @@ initFrame:SetScript("OnEvent", function()
     initFrame.timer = initFrame.timer + arg1
     if initFrame.timer > 2 then
       initFrame:SetScript("OnUpdate", nil)
+      -- PLAYER_ENTERING_WORLD fires on every zone change; hooking again each
+      -- time stacked the hooks and tagged a name once per loading screen.
+      initFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
       HookUnitFrames()
       HookNameplates()
       HookChat()
