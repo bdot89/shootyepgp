@@ -1158,6 +1158,12 @@ UI.Page{ key = "settings", label = "Settings", tip = "Your own shootyepgp settin
     ToggleRow(f, w, 12, -36, "Minimap button", "The round button on the minimap that opens this window. /epgp opens it too.",
       function() return not UI.DB().minimapHide end,
       function(v) UI.DB().minimapHide = not v UI.Minimap.Update() end)
+    -- officers: what a member paid for their worn gear, on its tooltip (ui\PaidLoot.lua)
+    local pt, pl = ToggleRow(f, w, 12, -64, "Paid loot on gear tooltips", "Hovering a member's worn item (inspect or character sheet) shows a box with what they paid for it in our raids: mainspec / offspec, date and GP. Officers only.",
+      function() return not UI.DB().paidTipsOff end, function(v) UI.DB().paidTipsOff = not v end)
+    table.insert(Refreshers(f), function()
+      if UI.IsAdmin() then pt:Show() pl:Show() else pt:Hide() pl:Hide() end
+    end)
     UI.Label(w, "Window size", 12, -96)
     f.scale = UI.Slider(w, cw - 110)
     f.scale:SetPoint("TOPLEFT", w, "TOPLEFT", 96, -94)

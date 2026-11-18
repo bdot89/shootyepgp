@@ -146,7 +146,7 @@ ITEM_QUALITY_COLORS = { [4] = { hex = "|cffa335ee" } }
 -- ------------------------------------------------------------ load
 sepgp.gp_prices = { [16900] = { 175, "T2" }, [19402] = { 225, "T2" } }
 sepgp_price_edits = { [19402] = { gp = 225, by = "Aldren", at = 1 }, [16900] = { gp = 200, by = "Aldren", at = 2 } }
-for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Accounts.lua", "ui/Decay.lua", "loot_db.lua", "ui/Prices.lua", "ui/BidPopup.lua", "ui/BidWindow.lua", "ui/LootPractice.lua", "ui/QuickPoints.lua", "ui/Versions.lua", "ui/Minimap.lua" }) do dofile(f) end
+for _, f in ipairs({ "ui/Style.lua", "ui/Window.lua", "ui/History.lua", "ui/Pages.lua", "ui/Raids.lua", "ui/RaidsPractice.lua", "ui/AddonCheck.lua", "ui/Accounts.lua", "ui/Decay.lua", "loot_db.lua", "ui/Prices.lua", "ui/BidPopup.lua", "ui/BidWindow.lua", "ui/LootPractice.lua", "ui/QuickPoints.lua", "loot_variants.lua", "ui/PaidLoot.lua", "ui/Versions.lua", "ui/Minimap.lua" }) do dofile(f) end
 local UI = SEPGP_UI
 local function Dump() for i = 1, table.getn(Mock.printed) do print("chat: " .. Mock.printed[i]) end Mock.printed = {} end
 Mock.Fire("ADDON_LOADED", "shootyepgp")
@@ -1281,6 +1281,115 @@ do
     if not p.nav or not p.nav.icon or not p.nav.icon.texture or string.find(p.nav.icon.texture, "QuestionMark", 1, true) then missing = missing .. k .. " " end
   end
   ok(missing == "", "every topic has an icon (" .. missing .. ")")
+end
+-- ---------------------------------------------------------------- paid loot on tooltips
+do
+  local PL = UI.PaidLoot
+  local wasAdmin = admin
+  admin = true
+  local link = "|cffa335ee|Hitem:16900:0:0:0|h[Stormrage Cover]|h|r"
+  UI.History.Add({ k = "L", t = 1790000000, w = "Eldrin", i = 16900, nm = "Stormrage Cover", n = 43, a = "Offspec GP" })
+  sepgp_lootarchive = { Eldrin = { { 1780000000, 16900, "Stormrage Cover", "Mainspec GP", 175 } } }
+  local recs = PL.Records("Eldrin", link)
+  local ms, os2 = 0, 0
+  for i = 1, table.getn(recs) do
+    if recs[i].label == "Paid Mainspec" then ms = ms + 1 end
+    if recs[i].label == "Paid Offspec" then os2 = os2 + 1 end
+  end
+  ok(ms >= 1 and os2 == 1, "worn item: paid mainspec and offspec found (" .. ms .. "/" .. os2 .. ")")
+  -- the box: header "PAID 2x", one row per purchase with a coloured tag, date, GP
+  GameTooltip:Show()
+  GameTooltipTextLeft1:SetText("Stormrage Cover")
+  local function Box(name, l)
+    PL.Show(GameTooltip, name, l)
+    local b = PL.box
+    local rows = {}
+    if b and b:IsShown() then
+      for k = 1, table.getn(b.rows) do
+        local r = b.rows[k]
+        if r.tag:IsShown() then
+          table.insert(rows, (r.tag:GetText() or "") .. "|" .. (r.date:GetText() or "") .. "|" .. (r.gp:GetText() or "") .. "|" .. (r.sub:IsShown() and r.sub:GetText() or ""))
+        end
+      end
+    end
+    return b and b:IsShown(), b and b.title:GetText(), rows
+  end
+  local shown, title, rows = Box("Eldrin", link)
+  local all = table.concat(rows, "~")
+  ok(shown and title == "PAID  " .. table.getn(recs) .. "x", "box header counts the purchases (" .. tostring(title) .. ")")
+  local n = table.getn(rows)
+  ok(n == table.getn(recs) and string.find(rows[1], "MAINSPEC") and string.find(rows[1], "175 GP") and string.find(rows[n], "OFFSPEC") and string.find(rows[n], "43 GP"), "one row each, oldest first, tag + GP (" .. all .. ")")
+  ok(not string.find(all, "||", 1, true), "every row has a date and GP")
+  -- beside the tooltip's top right corner, as wide as its text
+  local pt = PL.box.point
+  ok(pt and pt[1] == "TOPLEFT" and pt[2] == GameTooltip and pt[3] == "TOPRIGHT", "box sits at the tooltip's top right (" .. tostring(pt and pt[1]) .. "/" .. tostring(pt and pt[3]) .. ")")
+  local oldSW = GetScreenWidth
+  GetScreenWidth = function() return 350 end
+  Box("Eldrin", link)
+  pt = PL.box.point
+  ok(pt and pt[1] == "TOPRIGHT" and pt[3] == "TOPLEFT", "near the right screen edge it goes left of the tooltip")
+  GetScreenWidth = oldSW
+  shown, title, rows = Box("Corvan", link)
+  ok(shown and string.find(title or "", "NOT PAID") and table.getn(rows) == 0 and PL.box.none:IsShown(), "guild member who never paid: small NOT PAID box (" .. tostring(title) .. ")")
+  shown = Box("Stranger", link)
+  ok(not shown, "no box for someone outside the guild")
+  -- pfUI's inspect: out of range, the slot shows the cached item via SetHyperlink
+  InspectFrame = { unit = "target" }
+  Mock.units.target = Mock.units.target or {}
+  local oldName = UnitName
+  UnitName = function(u) if u == "target" then return "Eldrin" end return oldName(u) end
+  local slotBtn = CreateFrame("Button", "InspectHeadSlot", UIParent)
+  this = slotBtn
+  GameTooltip:SetHyperlink("item:16900")
+  ok(PL.box:IsShown() and string.find(PL.box.title:GetText() or "", "PAID  %d"), "inspect cache path (SetHyperlink) shows the box")
+  this = UIParent
+  GameTooltip:SetHyperlink("item:16900")
+  ok(not PL.box:IsShown(), "SetHyperlink elsewhere (chat links) shows no box")
+  UnitName, InspectFrame, this = oldName, nil, nil
+  -- a tier piece changed by quest: paid for the Circlet, now wearing the Coronet
+  UI.History.Add({ k = "L", t = 1790500000, w = "Corvan", i = 16813, nm = "Circlet of Prophecy", n = 100, a = "Mainspec GP" })
+  local coronet = "|cffa335ee|Hitem:47198:0:0:0|h[Coronet of Prophecy]|h|r"
+  shown, title, rows = Box("Corvan", coronet)
+  all = table.concat(rows, "~")
+  ok(shown and title == "PAID  1x" and string.find(all, "MAINSPEC") and string.find(all, "dropped as Circlet of Prophecy"), "quest version counts as the one that dropped (" .. all .. ")")
+  local subW = PL.box.rows[1].sub:GetStringWidth()
+  ok(PL.box:GetWidth() >= subW + 10, "box is wide enough for the quest line (" .. tostring(PL.box:GetWidth()) .. " >= " .. subW .. ")")
+  ok(not PL.SameItem(16813, 16900), "different items stay apart")
+  UI.History.Add({ k = "L", t = 1791000000, w = "Corvan", i = 16813, nm = "Circlet of Prophecy", n = 0, a = "Bank-D/E" })
+  shown, title, rows = Box("Corvan", coronet)
+  ok(title == "PAID  1x" and table.getn(rows) == 1, "bank / disenchant records left out (" .. tostring(title) .. ")")
+  -- the box goes when the tooltip moves on to another item, or hides
+  Box("Eldrin", link)
+  GameTooltipTextLeft1:SetText("Linen Cloth")
+  Mock.Tick(0.1)
+  ok(not PL.box:IsShown(), "box goes when the tooltip shows another item")
+  GameTooltipTextLeft1:SetText("Stormrage Cover")
+  Box("Eldrin", link)
+  GameTooltip:Hide()
+  ok(not PL.box:IsShown(), "box goes with the tooltip")
+  GameTooltip:Show()
+  -- officers only, and the Settings switch turns it off
+  admin = false
+  ok(not Box("Eldrin", link), "members never see the box")
+  admin = true
+  UI.DB().paidTipsOff = true
+  ok(not Box("Eldrin", link), "Settings switch off: no box")
+  UI.DB().paidTipsOff = nil
+  ok(Box("Eldrin", link), "switch back on: box again")
+  GameTooltip:Hide()
+  -- the same sale in the website archive and the addon's history, seconds
+  -- apart across an hour boundary, shows once
+  UI.History.Add({ k = "L", t = 1792800001, w = "Eldrin", i = 19402, nm = "Legguards of the Fallen Crusader", n = 225, a = "Mainspec GP" })
+  sepgp_lootarchive = { Eldrin = { { 1792799995, 19402, "Legguards of the Fallen Crusader", "Mainspec GP", 225 } } }
+  ok(table.getn(PL.Records("Eldrin", "|cffa335ee|Hitem:19402:0:0:0|h[Legguards of the Fallen Crusader]|h|r")) == 1, "archive + history overlap counted once")
+  -- the real archive built from the website backup
+  sepgp_lootarchive = nil
+  dofile("loot_archive.lua")
+  local found = false
+  for _, r in ipairs(sepgp_lootarchive.Upsilon or {}) do if r[2] == 18814 and r[5] == 200 then found = true end end
+  ok(found, "loot_archive.lua: Upsilon's Choker of the Fire Lord, 200 GP")
+  sepgp_lootarchive = nil
+  admin = wasAdmin
 end
 -- slash
 SlashCmdList.SEPGPUI("logs")
