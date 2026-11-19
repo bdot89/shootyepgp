@@ -89,6 +89,11 @@ local function BuildList(f)
   lv.list = l
   lv.count = UI.Text(lv, 10, C.dim)
   lv.count:SetPoint("TOPLEFT", l, "BOTTOMLEFT", 2, -5)
+  -- officers: find raid awards a member's history misses although the note has the EP
+  lv.check = UI.Button(lv, "Check history", 110, 20)
+  lv.check:SetPoint("TOPRIGHT", lv, "TOPRIGHT", 0, 0)
+  lv.check:SetScript("OnClick", function() UI.pages.raids.checkHistory() end)
+  UI.Tip(lv.check, "Check history against the notes", "Compares every member's EP in their officer note with their EP / GP history since the last decay. A raid award the note shows they got but the history does not list (their copy did not hear it) is added to the history, as it was given. EP is never changed. Officers only.")
 end
 
 local function TickedNames(f)
@@ -321,8 +326,42 @@ UI.Page{ key = "raids", label = "Raids", after = "standings",
       rv.officer:Hide()
     end
   end,
+  checkHistory = function()
+    if not UI.IsAdmin() then return end
+    UI.Roster(true)
+    local found, odd = H.MissingAwards()
+    local lines = {}
+    for i = 1, table.getn(found) do
+      local x = found[i]
+      for j = 1, table.getn(x.groups) do
+        local g = x.groups[j]
+        table.insert(lines, x.name .. ": +" .. g.n .. " " .. (g.a == "standby" and "standby" or "raid") .. " EP " .. H.When(g.t) .. (g.z and (" " .. g.z) or "") .. " (by " .. tostring(g.by) .. ")")
+      end
+    end
+    local oddText = ""
+    if table.getn(odd) > 0 then
+      local o = {}
+      for i = 1, math.min(8, table.getn(odd)) do table.insert(o, odd[i].name .. " +" .. odd[i].gap) end
+      oddText = "\n\nNot explained by a raid award (left alone, check by hand): " .. table.concat(o, ", ") .. (table.getn(odd) > 8 and " ..." or "")
+    end
+    if table.getn(lines) == 0 then
+      UI.Confirm("Every member's history matches their officer note since the last decay." .. oddText, nil, "History check", "OK")
+      return
+    end
+    local shown = {}
+    for i = 1, math.min(14, table.getn(lines)) do shown[i] = lines[i] end
+    if table.getn(lines) > 14 then table.insert(shown, "and " .. (table.getn(lines) - 14) .. " more") end
+    UI.Confirm("Their officer notes have this EP, but their history does not list it (their copy did not hear the award):\n\n"
+      .. table.concat(shown, "\n") .. "\n\nAdd these lines to the history and share them with the guild? EP is NOT changed." .. oddText,
+      function()
+        local n = H.FillMissing(found)
+        UI.Print(n .. " missing award lines added to the history (EP unchanged)")
+        UI.Refresh()
+      end, "Missing history lines", "Yes, add the lines")
+  end,
   refresh = function(f)
     H.Seed()
+    if f.lv and f.lv.check then if UI.IsAdmin() then f.lv.check:Show() else f.lv.check:Hide() end end
     H.Ask("#R")
     if f.raidId then UI.pages.raids.fillRaid(f) else UI.pages.raids.fillList(f) end
   end,

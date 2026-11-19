@@ -1273,6 +1273,64 @@ do
   ok(not LP.on and not BW.frame:IsShown(), "practice switches off")
   SendChatMessage, sepgp.addonMessage, sepgp.widestAudience = oldSend, oldAddon, oldWide
 end
+-- history check: an award the notes have but the history does not list (19 Nov 2026)
+do
+  admin = true
+  local H, D = UI.History, UI.Decay
+  local base = time() + 1000
+  D.Store()["chk-1"] = { id = "chk-1", t = base, by = "Aldren", pct = 10, m = {
+    { "Aldren", 900, 400, 800, 400 }, { "Corvan", 1500, 900, 1350, 810 }, { "Eldrin", 2000, 1200, 1800, 1080 } } }
+  D.version = (D.version or 0) + 1
+  -- first award heard by everyone, the second only listed for Corvan (like Bobby)
+  for _, w in ipairs({ "Aldren", "Corvan", "Eldrin" }) do H.Add({ k = "E", t = base + 600, n = 150, w = w, a = "raid", by = "Aldren", z = "Blackwing Lair" }) end
+  H.Add({ k = "E", t = base + 6000, n = 150, w = "Corvan", a = "raid", by = "Aldren", z = "Blackwing Lair" })
+  -- the notes: everyone got both awards
+  GUILD[1][8] = "{1100:400}"
+  GUILD[2][8] = "{1650:810}"
+  GUILD[6][8] = "{2100:1080}"
+  UI.Roster(true)
+  local found, odd = H.MissingAwards()
+  local names = ""
+  for i = 1, table.getn(found) do names = names .. found[i].name .. "=" .. found[i].gap .. " " end
+  ok(names == "Aldren=150 Eldrin=150 ", "history check finds who misses the second award (" .. names .. ")")
+  ok(found[2] and found[2].groups[1].t == base + 6000 and found[2].groups[1].z == "Blackwing Lair", "the missing line is that award, with its zone")
+  -- through the Raids page button
+  UI.Select("raids")
+  local sent0 = table.getn(H.queue)
+  this = UI.pages.raids.frame.lv.check
+  UI.pages.raids.frame.lv.check.scripts.OnClick()
+  ok(UI.confirmFrame:IsShown() and string.find(UI.confirmFrame.text:GetText(), "Eldrin: +150 raid EP", 1, true), "it asks first, listing the lines")
+  UI.ConfirmYes()
+  local has
+  local ev = H.For("Eldrin")
+  for i = 1, table.getn(ev) do if ev[i].t == base + 6000 and ev[i].n == 150 and ev[i].a == "raid" then has = true end end
+  ok(has, "Eldrin's history now has the award, same as Corvan's")
+  ok(table.getn(H.queue) > sent0, "the added lines are shared with the guild")
+  ok(GUILD[6][8] == "{2100:1080}", "EP is not changed")
+  local again = H.MissingAwards()
+  ok(table.getn(again) == 0, "nothing missing after the fill")
+  -- an award is sent a second time for copies that were zoning
+  local nl = table.getn(H.later)
+  Mock.raidNames = { "Aldren", "Corvan" }
+  H.Award({ "Aldren", "Corvan" }, 50, "raid")
+  ok(table.getn(H.later) == nl + 1, "a raid award is queued to be sent again")
+  -- after a loading screen, the copy asks for raid awards it missed
+  H.asked["#R"] = nil
+  local q0 = table.getn(H.queue)
+  Mock.Fire("PLAYER_ENTERING_WORLD")
+  Mock.Tick(10)
+  local asked
+  for i = 1, table.getn(H.queue) do if H.queue[i] == "HQ;#R" then asked = true end end
+  ok(asked or (H.asked["#R"] ~= nil), "asks the officers for missed raid awards after zoning")
+  -- an officer still answers when another answer did not cover their newest award
+  H.heardRT = 1
+  H.replied["#R"] = nil
+  local before = table.getn(H.queue)
+  UI.History.OnQuery("#R", "Corvan")
+  H.heardRT = 1
+  Mock.Tick(4)
+  ok(table.getn(H.queue) > before or H.replied["#R"], "answers when the heard answer is older than its newest award")
+end
 -- topics: Prices right under Home, every topic has its icon
 ok(UI.order[1] == "home" and UI.order[2] == "prices", "Prices is the second topic (" .. tostring(UI.order[2]) .. ")")
 do

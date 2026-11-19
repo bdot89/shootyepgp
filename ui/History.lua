@@ -24,7 +24,7 @@
 -- queue when one is loaded. The addon's own messages are unchanged.
 
 local UI = SEPGP_UI
-local H = { queue = {}, pending = {}, replied = {}, asked = {}, version = 0 }
+local H = { queue = {}, later = {}, pending = {}, replied = {}, asked = {}, version = 0 }
 UI.History = H
 
 local PREFIX = "SEPGPH"
@@ -404,6 +404,8 @@ function H.Award(names, n, kind)
     for i = 1, table.getn(list) do H.Add({ k = "E", t = t, n = amt, w = list[i], a = kind, by = Me(), z = zone, r = rid }) end
     local msgs = H.Pack("HR;" .. t .. "," .. amt .. "," .. kind .. "," .. zone .. "," .. rid .. ";", list, ",")
     for i = 1, table.getn(msgs) do H.Send(msgs[i]) end
+    -- once more a little later, for copies that were zoning or reloading (heard twice = one event)
+    table.insert(H.later, { due = GetTime() + 25, msgs = msgs })
   end
 end
 
@@ -615,6 +617,116 @@ local function AnswerRaids()
 end
 H.AnswerRaids = AnswerRaids
 
+-- the newest raid / standby award time we know of (an answer that has it covers ours)
+function H.NewestAwardT()
+  local evs = H.All({ E = 1 })
+  for i = 1, table.getn(evs) do
+    if evs[i].a == "raid" or evs[i].a == "standby" then return evs[i].t end
+  end
+  return 0
+end
+
+-- ------------------------------------------------------------------ history check
+-- The officer note is what counts; the history is only what this copy heard.
+-- A copy in a loading screen, reloading or offline while an award was given
+-- misses those lines although the EP reached the notes (19 Nov 2026: BWL 19:17
+-- shown for Bobby, missing for Bess and Upsilon whose notes have the EP).
+-- For each member since the newest decay that still counts (its record has
+-- their EP after it): note EP - (EP after the decay + EP in their history).
+-- A gap that one raid award of the same night (given to others, not listed for
+-- them) explains - or all of them together - is an award line they miss.
+-- Returns { { name, gap, groups = { award, ... } } } and the members whose gap
+-- nothing explains (shown, never changed).
+function H.MissingAwards()
+  local found, unexplained = {}, {}
+  local D = UI.Decay
+  if not D or not D.List then return found, unexplained end
+  local base
+  local recs = D.List()
+  for i = 1, table.getn(recs) do
+    if not recs[i].undo then base = recs[i] break end
+  end
+  if not base then return found, unexplained end
+  local after = {}
+  for j = 1, table.getn(base.m) do after[base.m[j][1]] = tonumber(base.m[j][4]) end
+  -- award groups since the decay: same officer, amount, kind, within two minutes
+  local groups, order = {}, {}
+  local evs = H.All({ E = 1 })
+  for i = table.getn(evs), 1, -1 do
+    local e = evs[i]
+    if e.t > base.t and e.w and (e.a == "raid" or e.a == "standby") then
+      local g
+      for j = 1, table.getn(order) do
+        local o = order[j]
+        if o.by == e.by and o.n == e.n and o.a == e.a and math.abs(o.t - e.t) <= 120 then g = o break end
+      end
+      if not g then
+        g = { t = e.t, n = e.n, a = e.a, by = e.by, z = e.z, r = e.r, names = {}, count = 0 }
+        table.insert(order, g)
+      end
+      if not g.names[e.w] then g.names[e.w] = true g.count = g.count + 1 end
+    end
+  end
+  local roster = UI.Roster()
+  for i = 1, table.getn(roster) do
+    local m = roster[i]
+    if m.hasEPGP and not m.main and after[m.name] then
+      local sum = 0
+      local mine = H.For(m.name)
+      for j = 1, table.getn(mine) do
+        local e = mine[j]
+        if e.k == "E" and e.t > base.t then sum = sum + (tonumber(e.n) or 0) end
+      end
+      local gap = m.ep - (after[m.name] + sum)
+      if gap > 0 then
+        -- awards of the nights they were at (they have an award within 12 h) that skip them
+        local absent, total = {}, 0
+        for j = 1, table.getn(order) do
+          local g = order[j]
+          if not g.names[m.name] then
+            local near = false
+            for k = 1, table.getn(mine) do
+              local e = mine[k]
+              if e.k == "E" and (e.a == "raid" or e.a == "standby") and math.abs(e.t - g.t) <= 12 * 3600 then near = true end
+            end
+            if near then table.insert(absent, g) total = total + g.n end
+          end
+        end
+        local pick
+        for j = table.getn(absent), 1, -1 do
+          if absent[j].n == gap then pick = { absent[j] } break end
+        end
+        if not pick and total == gap and table.getn(absent) > 0 then pick = absent end
+        if pick then
+          table.insert(found, { name = m.name, gap = gap, groups = pick })
+        else
+          table.insert(unexplained, { name = m.name, gap = gap })
+        end
+      end
+    end
+  end
+  table.sort(found, function(a, b) return a.name < b.name end)
+  table.sort(unexplained, function(a, b) return a.name < b.name end)
+  return found, unexplained
+end
+
+-- add the missing lines (as the award was: time, amount, officer, zone, raid) and share them
+function H.FillMissing(found)
+  local n = 0
+  for i = 1, table.getn(found) do
+    local f = found[i]
+    for j = 1, table.getn(f.groups) do
+      local g = f.groups[j]
+      local e, new = H.Add({ k = "E", t = g.t, n = g.n, w = f.name, a = g.a, by = g.by, z = g.z, r = g.r })
+      if new then
+        n = n + 1
+        H.Send("HE;" .. H.Enc(e))
+      end
+    end
+  end
+  return n
+end
+
 -- ------------------------------------------------------------------ asking
 
 -- What we answer with: a player's newest events, or for "*" the newest of
@@ -636,7 +748,10 @@ function H.Ask(name)
 end
 
 local function Answer(name)
-  if name == "#R" then return H.AnswerRaids() end
+  if name == "#R" then
+    if H.heardRT and H.heardRT >= H.NewestAwardT() then return end
+    return H.AnswerRaids()
+  end
   local evs = H.ForReply(name)
   if table.getn(evs) == 0 then return end
   local parts = {}
@@ -656,6 +771,7 @@ function H.OnQuery(name, sender)
   elseif table.getn(H.ForReply(name)) == 0 then
     return
   end
+  if name == "#R" then H.heardRT = nil end
   H.pending[name] = GetTime() + 0.4 + math.random() * 2.5
 end
 
@@ -694,12 +810,13 @@ function H.FromOurs(msg, sender)
     end
   elseif op == "HS" and f[2] and f[3] then
     -- HS;kind,t,n,action,zone,raid id,officer;names (an answer to HQ;#R)
-    H.pending["#R"] = nil
+    -- another officer answers: we still answer unless what they sent covers our newest award
     H.replied["#R"] = GetTime()
     local h = Split(f[2], ",")
     local k, t, n = h[1], tonumber(h[2] or ""), tonumber(h[3] or "")
     if (k == "E" or k == "G") and t and n then
       local a, z, rid, by = h[4], h[5], h[6], h[7]
+      if (a == "raid" or a == "standby") and t > (H.heardRT or 0) then H.heardRT = t end
       local names = Split(f[3], ",")
       for i = 1, table.getn(names) do
         if names[i] ~= "" then
@@ -773,6 +890,9 @@ f:SetScript("OnEvent", function()
     end
   else
     pcall(H.Seed)
+    -- after every loading screen / login: ask the officers for raid awards we may have
+    -- missed while not listening (the history only gets what this copy hears)
+    if event == "PLAYER_ENTERING_WORLD" then H.catchUpAt = GetTime() + 8 end
   end
 end)
 f.wait = 0
@@ -782,6 +902,16 @@ f:SetScript("OnUpdate", function()
     if now >= due then
       H.pending[name] = nil
       pcall(Answer, name)
+    end
+  end
+  if H.catchUpAt and now >= H.catchUpAt and IsInGuild() then
+    H.catchUpAt = nil
+    pcall(H.Ask, "#R")
+  end
+  for i = table.getn(H.later), 1, -1 do
+    if now >= H.later[i].due then
+      local l = table.remove(H.later, i)
+      for m = 1, table.getn(l.msgs) do H.Send(l.msgs[m]) end
     end
   end
   if table.getn(H.queue) > 0 and now >= f.wait then
